@@ -74,7 +74,10 @@
         BC: [1, 2],
         BD: [1, 2],
         C: [1, 9],
-        D: [1, 11]
+        D: [1, 11],
+        E: [0, 1],
+        F: [1, 20],
+        G: [1, 20]
     };
 
     function initializeZoneInputs() {
@@ -93,7 +96,10 @@
             BC: 'BC',
             BD: 'BD',
             C: 'C',
-            D: 'D'
+            D: 'D',
+            E: 'E',
+            F: 'F',
+            G: 'G'
         };
 
         zoneCodeSelect.innerHTML = '';
@@ -111,13 +117,21 @@
 
     function applyTempLotDefaults() {
         const zoneCodeSelect = document.getElementById('zoneCode');
-        if (zoneCodeSelect.value !== 'TEMP_LOT') {
+        const zoneNumberInput = document.getElementById('zoneNumber');
+        const rackInput = document.getElementById('rackInput');
+        const cellInput = document.getElementById('cellInput');
+
+        if (zoneCodeSelect.value === 'TEMP_LOT') {
+            zoneNumberInput.value = '1';
+            rackInput.value = '23';
+            cellInput.value = '3';
+            rackInput.disabled = true;
+            cellInput.disabled = true;
             return;
         }
 
-        document.getElementById('zoneNumber').value = '1';
-        document.getElementById('rackInput').value = '23';
-        document.getElementById('cellInput').value = '3';
+        rackInput.disabled = false;
+        cellInput.disabled = false;
     }
 
     function updateZoneNumberOptions() {
@@ -172,6 +186,12 @@
         const part1 = '1F';
         const zoneCode = document.getElementById('zoneCode').value;
         const zoneNumber = document.getElementById('zoneNumber').value;
+
+        if (zoneCode === 'TEMP_LOT') {
+            document.getElementById('rackInput').value = '23';
+            document.getElementById('cellInput').value = '3';
+        }
+
         const { resolvedCode, resolvedNumber } = resolveZoneValue(zoneCode, zoneNumber);
         const part2 = formatZonePart(resolvedCode, resolvedNumber);
         const part3 = formatNumberPart(document.getElementById('rackInput').value, 3);

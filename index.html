@@ -20,6 +20,10 @@
         #result-container { margin-top: 25px; }
         #result-text { font-weight: bold; color: #333; margin-bottom: 15px; font-size: 18px; }
         #qrcode { display: inline-block; }
+        #history-container { margin-top: 24px; text-align: left; }
+        #history-container h3 { margin: 0 0 10px; font-size: 16px; color: #333; }
+        #history-list { margin: 0; padding-left: 18px; color: #444; font-size: 14px; }
+        #history-list li { margin-bottom: 6px; word-break: break-all; }
 
         @media (max-width: 620px) {
             .zone-row,
@@ -55,6 +59,11 @@
     <div id="result-container">
         <div id="result-text"></div>
         <div id="qrcode"></div>
+    </div>
+
+    <div id="history-container">
+        <h3>최근 생성 히스토리 (최대 20개)</h3>
+        <ol id="history-list"></ol>
     </div>
 </div>
 
@@ -188,6 +197,47 @@
         return trimmed.padStart(length, '0');
     }
 
+
+    const HISTORY_KEY = 'qr_generator_history_v1';
+    const HISTORY_LIMIT = 20;
+
+    function loadHistory() {
+        try {
+            const raw = localStorage.getItem(HISTORY_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function saveHistory(items) {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
+    }
+
+    function addHistoryItem(convertedString) {
+        const history = loadHistory();
+        const nextHistory = [
+            convertedString,
+            ...history.filter((item) => item !== convertedString)
+        ].slice(0, HISTORY_LIMIT);
+
+        saveHistory(nextHistory);
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const historyList = document.getElementById('history-list');
+        const history = loadHistory();
+
+        historyList.innerHTML = '';
+        history.forEach((item) => {
+            const li = document.createElement('li');
+            li.textContent = item;
+            historyList.appendChild(li);
+        });
+    }
+
     function generateQR() {
         const resultTextDiv = document.getElementById('result-text');
         const qrcodeDiv = document.getElementById('qrcode');
@@ -213,6 +263,7 @@
 
         const convertedString = `${part1}${part2}${part3}${part4}`;
         resultTextDiv.innerText = '변환 결과: ' + convertedString;
+        addHistoryItem(convertedString);
 
         qrcodeDiv.innerHTML = '';
         new QRCode(qrcodeDiv, {
@@ -240,6 +291,7 @@
         document.getElementById('zoneNumber').addEventListener('change', generateQR);
         document.getElementById('rackInput').addEventListener('input', generateQR);
         document.getElementById('cellInput').addEventListener('input', generateQR);
+        renderHistory();
         generateQR();
     };
 </script>

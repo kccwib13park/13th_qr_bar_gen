@@ -61,6 +61,7 @@
 
 <script>
     const zoneRules = {
+        TEMP_LOT: [1, 1],
         A: [1, 1],
         AB: [1, 5],
         AC: [1, 5],
@@ -78,24 +79,52 @@
 
     function initializeZoneInputs() {
         const zoneCodeSelect = document.getElementById('zoneCode');
-        const codes = Object.keys(zoneRules);
+        const zoneLabels = {
+            TEMP_LOT: '임시 지번',
+            A: 'A',
+            AB: 'AB',
+            AC: 'AC',
+            AD: 'AD',
+            AR: 'AR',
+            AT: 'AT',
+            AZ: 'AZ',
+            BA: 'BA',
+            BB: 'BB',
+            BC: 'BC',
+            BD: 'BD',
+            C: 'C',
+            D: 'D'
+        };
 
         zoneCodeSelect.innerHTML = '';
-        codes.forEach((code) => {
+        Object.keys(zoneRules).forEach((code) => {
             const option = document.createElement('option');
             option.value = code;
-            option.textContent = code;
+            option.textContent = zoneLabels[code] ?? code;
             zoneCodeSelect.appendChild(option);
         });
 
-        zoneCodeSelect.value = 'D';
+        zoneCodeSelect.value = 'TEMP_LOT';
         updateZoneNumberOptions();
+        applyTempLotDefaults();
+    }
+
+    function applyTempLotDefaults() {
+        const zoneCodeSelect = document.getElementById('zoneCode');
+        if (zoneCodeSelect.value !== 'TEMP_LOT') {
+            return;
+        }
+
+        document.getElementById('zoneNumber').value = '1';
+        document.getElementById('rackInput').value = '23';
+        document.getElementById('cellInput').value = '3';
     }
 
     function updateZoneNumberOptions() {
         const zoneCodeSelect = document.getElementById('zoneCode');
         const zoneNumberSelect = document.getElementById('zoneNumber');
         const [start, end] = zoneRules[zoneCodeSelect.value];
+        zoneNumberSelect.disabled = zoneCodeSelect.value === 'TEMP_LOT';
 
         const currentValue = Number(zoneNumberSelect.value);
         zoneNumberSelect.innerHTML = '';
@@ -112,6 +141,14 @@
         } else {
             zoneNumberSelect.value = String(start);
         }
+    }
+
+    function resolveZoneValue(zoneCode, zoneNumber) {
+        if (zoneCode === 'TEMP_LOT') {
+            return { resolvedCode: 'B', resolvedNumber: 1 };
+        }
+
+        return { resolvedCode: zoneCode, resolvedNumber: Number(zoneNumber) };
     }
 
     function formatZonePart(zoneCode, zoneNumber) {
@@ -135,7 +172,8 @@
         const part1 = '1F';
         const zoneCode = document.getElementById('zoneCode').value;
         const zoneNumber = document.getElementById('zoneNumber').value;
-        const part2 = formatZonePart(zoneCode, zoneNumber);
+        const { resolvedCode, resolvedNumber } = resolveZoneValue(zoneCode, zoneNumber);
+        const part2 = formatZonePart(resolvedCode, resolvedNumber);
         const part3 = formatNumberPart(document.getElementById('rackInput').value, 3);
         const part4 = formatNumberPart(document.getElementById('cellInput').value, 3);
 
@@ -162,6 +200,7 @@
         initializeZoneInputs();
         document.getElementById('zoneCode').addEventListener('change', () => {
             updateZoneNumberOptions();
+            applyTempLotDefaults();
             generateQR();
         });
         document.getElementById('zoneNumber').addEventListener('change', generateQR);

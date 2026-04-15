@@ -15,22 +15,27 @@
         .rack-cell-row { grid-template-columns: 1fr 1fr; }
         .mini-label { text-align: left; font-size: 14px; color: #555; }
         input, select { padding: 10px; width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; background: #fff; }
+        input:disabled, select:disabled { background: #e5e7eb; color: #555; border-color: #cbd5e1; opacity: 1; }
         #saveBtn { margin-top: 12px; padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
         #saveBtn:hover { background-color: #0056b3; }
         #result-container { margin-top: 25px; }
         #result-text { font-weight: bold; color: #333; margin-bottom: 15px; font-size: 18px; }
         #qrcode { display: inline-block; }
         #history-container { margin-top: 24px; text-align: left; }
-        #history-container h3 { margin: 0 0 10px; font-size: 16px; color: #333; }
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+        #history-container h3 { margin: 0; font-size: 16px; color: #333; }
         #history-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
         #history-list li { margin: 0; }
-        .history-item-btn { width: 100%; text-align: left; border: 1px solid #d9d9d9; border-radius: 8px; background: #fafafa; padding: 9px 10px; font-size: 14px; color: #333; cursor: pointer; word-break: break-all; }
+        .history-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
+        .history-item-btn { width: 100%; text-align: left; border: 1px solid #d9d9d9; border-radius: 8px; background: #fafafa; padding: 9px 10px; font-size: 14px; color: #333; cursor: pointer; word-break: break-all; margin-top: 0; }
         .history-item-btn:hover { background: #eef5ff; border-color: #9ec3ff; }
+        .emoji-btn { border: 1px solid #d9d9d9; background: #fff; border-radius: 8px; padding: 6px 8px; cursor: pointer; font-size: 14px; line-height: 1; }
+        .emoji-btn:hover { background: #f3f4f6; }
 
         @media (max-width: 620px) {
-            .zone-row,
+            .zone-row { grid-template-columns: 1fr; }
             .rack-cell-labels,
-            .rack-cell-row { grid-template-columns: 1fr; }
+            .rack-cell-row { grid-template-columns: 1fr 1fr; }
         }
     </style>
 </head>
@@ -64,7 +69,10 @@
     </div>
 
     <div id="history-container">
-        <h3>최근 생성 히스토리 (최대 20개)</h3>
+        <div class="history-header">
+            <h3>최근 생성 히스토리 (최대 20개)</h3>
+            <button type="button" id="clearHistoryBtn" class="emoji-btn" title="전체 삭제">🗑️ 전체</button>
+        </div>
         <ol id="history-list"></ol>
     </div>
 </div>
@@ -314,6 +322,18 @@
         renderHistory();
     }
 
+
+    function removeHistoryItem(key) {
+        const history = loadHistory().filter((item) => item.key !== key);
+        saveHistory(history);
+        renderHistory();
+    }
+
+    function clearHistory() {
+        saveHistory([]);
+        renderHistory();
+    }
+
     function applyHistoryToInputs(item) {
         const groupEntry = Object.entries(zoneGroups).find(([, group]) => group.codes.includes(item.zoneCode));
         if (!groupEntry) return;
@@ -346,12 +366,28 @@
         historyList.innerHTML = '';
         history.forEach((item) => {
             const li = document.createElement('li');
+            const row = document.createElement('div');
+            row.className = 'history-row';
+
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'history-item-btn';
             button.textContent = `${formatHistoryTime(item.timestamp)} ${formatHistoryDisplay(item)}`;
             button.addEventListener('click', () => handleHistorySelect(item));
-            li.appendChild(button);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'emoji-btn';
+            deleteBtn.title = '삭제';
+            deleteBtn.textContent = '❌';
+            deleteBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                removeHistoryItem(item.key);
+            });
+
+            row.appendChild(button);
+            row.appendChild(deleteBtn);
+            li.appendChild(row);
             historyList.appendChild(li);
         });
     }
@@ -385,6 +421,7 @@
         document.getElementById('rackInput').addEventListener('input', previewQR);
         document.getElementById('cellInput').addEventListener('input', previewQR);
         document.getElementById('saveBtn').addEventListener('click', convertAndSave);
+        document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
 
         renderHistory();
         previewQR();

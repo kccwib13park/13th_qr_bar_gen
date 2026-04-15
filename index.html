@@ -22,8 +22,10 @@
         #qrcode { display: inline-block; }
         #history-container { margin-top: 24px; text-align: left; }
         #history-container h3 { margin: 0 0 10px; font-size: 16px; color: #333; }
-        #history-list { margin: 0; padding-left: 18px; color: #444; font-size: 14px; }
-        #history-list li { margin-bottom: 6px; word-break: break-all; }
+        #history-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+        #history-list li { margin: 0; }
+        .history-item-btn { width: 100%; text-align: left; border: 1px solid #d9d9d9; border-radius: 8px; background: #fafafa; padding: 9px 10px; font-size: 14px; color: #333; cursor: pointer; word-break: break-all; }
+        .history-item-btn:hover { background: #eef5ff; border-color: #9ec3ff; }
 
         @media (max-width: 620px) {
             .zone-row,
@@ -233,15 +235,39 @@
         historyList.innerHTML = '';
         history.forEach((item) => {
             const li = document.createElement('li');
-            li.textContent = item;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'history-item-btn';
+            button.textContent = item;
+            button.addEventListener('click', () => handleHistorySelect(item));
+            li.appendChild(button);
             historyList.appendChild(li);
         });
     }
 
-    function generateQR() {
+
+    function renderQRCode(text) {
         const resultTextDiv = document.getElementById('result-text');
         const qrcodeDiv = document.getElementById('qrcode');
 
+        resultTextDiv.innerText = '변환 결과: ' + text;
+        qrcodeDiv.innerHTML = '';
+        new QRCode(qrcodeDiv, {
+            text,
+            width: 180,
+            height: 180,
+            colorDark : '#000000',
+            colorLight : '#ffffff',
+            correctLevel : QRCode.CorrectLevel.H
+        });
+    }
+
+    function handleHistorySelect(text) {
+        addHistoryItem(text);
+        renderQRCode(text);
+    }
+
+    function generateQR() {
         const part1 = '1F';
         const zoneCode = document.getElementById('zoneCode').value;
         const zoneNumber = document.getElementById('zoneNumber').value;
@@ -262,18 +288,8 @@
         }
 
         const convertedString = `${part1}${part2}${part3}${part4}`;
-        resultTextDiv.innerText = '변환 결과: ' + convertedString;
         addHistoryItem(convertedString);
-
-        qrcodeDiv.innerHTML = '';
-        new QRCode(qrcodeDiv, {
-            text: convertedString,
-            width: 180,
-            height: 180,
-            colorDark : '#000000',
-            colorLight : '#ffffff',
-            correctLevel : QRCode.CorrectLevel.H
-        });
+        renderQRCode(convertedString);
     }
 
     window.onload = () => {

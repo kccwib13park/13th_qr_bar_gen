@@ -15,8 +15,8 @@
         .rack-cell-row { grid-template-columns: 1fr 1fr; }
         .mini-label { text-align: left; font-size: 14px; color: #555; }
         input, select { padding: 10px; width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; background: #fff; }
-        button { margin-top: 12px; padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        button:hover { background-color: #0056b3; }
+        #saveBtn { margin-top: 12px; padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        #saveBtn:hover { background-color: #0056b3; }
         #result-container { margin-top: 25px; }
         #result-text { font-weight: bold; color: #333; margin-bottom: 15px; font-size: 18px; }
         #qrcode { display: inline-block; }
@@ -56,7 +56,7 @@
         <input type="number" id="cellInput" value="3" min="0" inputmode="numeric" placeholder="예: 103">
     </div>
 
-    <button onclick="generateQR()">변환 및 생성</button>
+    <button id="saveBtn" type="button">변환 및 저장</button>
 
     <div id="result-container">
         <div id="result-text"></div>
@@ -81,24 +81,38 @@
 
     const zoneRules = {
         TEMP_LOT: [1, 1],
-        A: [1, 1],
-        AB: [1, 5],
-        AC: [1, 5],
-        AD: [1, 6],
-        AR: [1, 2],
-        AT: [1, 1],
-        AZ: [1, 1],
-        BA: [1, 2],
-        BB: [1, 2],
-        BC: [1, 2],
-        BD: [1, 2],
-        C: [1, 9],
-        D: [1, 11],
-        E: [0, 1],
-        F: [1, 20],
-        G: [1, 20],
+        A: [1, 1], AB: [1, 5], AC: [1, 5], AD: [1, 6], AR: [1, 2], AT: [1, 1], AZ: [1, 1],
+        BA: [1, 2], BB: [1, 2], BC: [1, 2], BD: [1, 2],
+        C: [1, 9], D: [1, 11],
+        E: [0, 1], F: [1, 20], G: [1, 20],
         H: [1, 1]
     };
+
+    const groupDefaults = {
+        TEMP_LOT: { code: 'TEMP_LOT', number: 1, rack: 23, cell: 3 },
+        A_ZONE: { code: 'AB', number: 5, rack: 1, cell: 101 },
+        B_ZONE: { code: 'BA', number: 1, rack: 1, cell: 3 },
+        CD_ZONE: { code: 'D', number: 8, rack: 1, cell: 101 },
+        MEZZANINE: { code: 'E', number: 0, rack: 1, cell: 101 },
+        H_ZONE: { code: 'H', number: 1, rack: 1, cell: 1 }
+    };
+
+    const HISTORY_KEY = 'qr_generator_history_v2';
+    const HISTORY_LIMIT = 20;
+    const WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function getNumberOptionLabel(zoneCode, value) {
+        if (zoneCode === 'AB' && value === 5) return '5 (보충 지번)';
+        if (zoneCode === 'D' && value === 8) return '8 (육류 전용 보충 지번)';
+        if (zoneCode === 'D' && value === 9) return '9 (소량 보충 지번)';
+        if (zoneCode === 'D' && value === 10) return '10 (소량 보충 지번)';
+        if (zoneCode === 'D' && value === 11) return '11 (소량 보충 지번)';
+        if (zoneCode === 'E' && value === 0) return '0 (벌크 보충 지번)';
+        if (zoneCode === 'E' && value === 1) return '1 (소량 보충 지번)';
+        return String(value);
+    }
 
     function initializeZoneInputs() {
         const zoneGroupSelect = document.getElementById('zoneGroup');
@@ -113,7 +127,7 @@
 
         zoneGroupSelect.value = 'TEMP_LOT';
         updateZoneCodeOptions();
-        applyTempLotDefaults();
+        applyDefaultsByGroup(true);
     }
 
     function updateZoneCodeOptions() {
@@ -134,46 +148,71 @@
         updateZoneNumberOptions();
     }
 
-    function applyTempLotDefaults() {
-        const zoneCode = document.getElementById('zoneCode').value;
-        const zoneNumberInput = document.getElementById('zoneNumber');
-        const rackInput = document.getElementById('rackInput');
-        const cellInput = document.getElementById('cellInput');
-
-        if (zoneCode === 'TEMP_LOT') {
-            zoneNumberInput.value = '1';
-            rackInput.value = '23';
-            cellInput.value = '3';
-            rackInput.disabled = true;
-            cellInput.disabled = true;
-            return;
-        }
-
-        rackInput.disabled = false;
-        cellInput.disabled = false;
-    }
-
-    function updateZoneNumberOptions() {
+    function updateZoneNumberOptions(preferredNumber = null) {
         const zoneCode = document.getElementById('zoneCode').value;
         const zoneNumberSelect = document.getElementById('zoneNumber');
         const [start, end] = zoneRules[zoneCode];
 
         const currentValue = Number(zoneNumberSelect.value);
-        zoneNumberSelect.innerHTML = '';
+        const targetValue = preferredNumber ?? currentValue;
 
+        zoneNumberSelect.innerHTML = '';
         for (let value = start; value <= end; value += 1) {
             const option = document.createElement('option');
             option.value = String(value);
-            option.textContent = String(value);
+            option.textContent = getNumberOptionLabel(zoneCode, value);
             zoneNumberSelect.appendChild(option);
         }
 
         zoneNumberSelect.disabled = zoneCode === 'TEMP_LOT' || (start === end);
 
-        if (currentValue >= start && currentValue <= end) {
-            zoneNumberSelect.value = String(currentValue);
+        if (targetValue >= start && targetValue <= end) {
+            zoneNumberSelect.value = String(targetValue);
         } else {
             zoneNumberSelect.value = String(start);
+        }
+    }
+
+    function applyDefaultsByGroup(force = false) {
+        const zoneGroup = document.getElementById('zoneGroup').value;
+        const defaults = groupDefaults[zoneGroup];
+        const zoneCodeSelect = document.getElementById('zoneCode');
+        const rackInput = document.getElementById('rackInput');
+        const cellInput = document.getElementById('cellInput');
+
+        if (!defaults) return;
+
+        if (force || !zoneCodeSelect.value) {
+            zoneCodeSelect.value = defaults.code;
+        }
+        zoneCodeSelect.value = defaults.code;
+        updateZoneNumberOptions(defaults.number);
+
+        rackInput.value = String(defaults.rack);
+        cellInput.value = String(defaults.cell);
+
+        const tempLot = zoneGroup === 'TEMP_LOT';
+        const hZone = zoneGroup === 'H_ZONE';
+        rackInput.disabled = tempLot;
+        cellInput.disabled = tempLot || hZone;
+    }
+
+    function applyInputStateOnly() {
+        const zoneGroup = document.getElementById('zoneGroup').value;
+        const rackInput = document.getElementById('rackInput');
+        const cellInput = document.getElementById('cellInput');
+
+        const tempLot = zoneGroup === 'TEMP_LOT';
+        const hZone = zoneGroup === 'H_ZONE';
+        rackInput.disabled = tempLot;
+        cellInput.disabled = tempLot || hZone;
+
+        if (hZone) {
+            cellInput.value = '1';
+        }
+        if (tempLot) {
+            rackInput.value = '23';
+            cellInput.value = '3';
         }
     }
 
@@ -181,7 +220,6 @@
         if (zoneCode === 'TEMP_LOT') {
             return { resolvedCode: 'B', resolvedNumber: 1 };
         }
-
         return { resolvedCode: zoneCode, resolvedNumber: Number(zoneNumber) };
     }
 
@@ -191,60 +229,35 @@
 
     function formatNumberPart(rawValue, length) {
         const trimmed = String(rawValue).trim();
-
-        if (!/^\d+$/.test(trimmed)) {
-            return null;
-        }
-
+        if (!/^\d+$/.test(trimmed)) return null;
         return trimmed.padStart(length, '0');
     }
 
+    function getCurrentPayload() {
+        applyInputStateOnly();
 
-    const HISTORY_KEY = 'qr_generator_history_v1';
-    const HISTORY_LIMIT = 20;
+        const part1 = '1F';
+        const zoneCode = document.getElementById('zoneCode').value;
+        const zoneNumber = document.getElementById('zoneNumber').value;
+        const { resolvedCode, resolvedNumber } = resolveZoneValue(zoneCode, zoneNumber);
+        const part2 = formatZonePart(resolvedCode, resolvedNumber);
+        const part3 = formatNumberPart(document.getElementById('rackInput').value, 3);
+        const part4 = formatNumberPart(document.getElementById('cellInput').value, 3);
 
-    function loadHistory() {
-        try {
-            const raw = localStorage.getItem(HISTORY_KEY);
-            const parsed = raw ? JSON.parse(raw) : [];
-            return Array.isArray(parsed) ? parsed : [];
-        } catch (error) {
-            return [];
+        if (!part3 || !part4) {
+            alert('입력 형식이 올바르지 않습니다. (예: 존 D/10, 렉 3, 칸 103)');
+            return null;
         }
+
+        return {
+            convertedString: `${part1}${part2}${part3}${part4}`,
+            zoneGroup: document.getElementById('zoneGroup').value,
+            zoneCode: resolvedCode,
+            zoneNumber: resolvedNumber,
+            rack: Number(document.getElementById('rackInput').value),
+            cell: Number(document.getElementById('cellInput').value)
+        };
     }
-
-    function saveHistory(items) {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
-    }
-
-    function addHistoryItem(convertedString) {
-        const history = loadHistory();
-        const nextHistory = [
-            convertedString,
-            ...history.filter((item) => item !== convertedString)
-        ].slice(0, HISTORY_LIMIT);
-
-        saveHistory(nextHistory);
-        renderHistory();
-    }
-
-    function renderHistory() {
-        const historyList = document.getElementById('history-list');
-        const history = loadHistory();
-
-        historyList.innerHTML = '';
-        history.forEach((item) => {
-            const li = document.createElement('li');
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'history-item-btn';
-            button.textContent = item;
-            button.addEventListener('click', () => handleHistorySelect(item));
-            li.appendChild(button);
-            historyList.appendChild(li);
-        });
-    }
-
 
     function renderQRCode(text) {
         const resultTextDiv = document.getElementById('result-text');
@@ -262,53 +275,119 @@
         });
     }
 
-    function handleHistorySelect(text) {
-        addHistoryItem(text);
-        renderQRCode(text);
+    function formatHistoryDisplay(item) {
+        return `${item.zoneCode}${item.zoneNumber}-${item.rack}-${item.cell}`;
     }
 
-    function generateQR() {
-        const part1 = '1F';
-        const zoneCode = document.getElementById('zoneCode').value;
-        const zoneNumber = document.getElementById('zoneNumber').value;
+    function formatHistoryTime(timestamp) {
+        const d = new Date(timestamp);
+        return `[ ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())} (${WEEKDAYS[d.getDay()]}) ]`;
+    }
 
-        if (zoneCode === 'TEMP_LOT') {
-            document.getElementById('rackInput').value = '23';
-            document.getElementById('cellInput').value = '3';
+    function loadHistory() {
+        try {
+            const raw = localStorage.getItem(HISTORY_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
         }
+    }
 
-        const { resolvedCode, resolvedNumber } = resolveZoneValue(zoneCode, zoneNumber);
-        const part2 = formatZonePart(resolvedCode, resolvedNumber);
-        const part3 = formatNumberPart(document.getElementById('rackInput').value, 3);
-        const part4 = formatNumberPart(document.getElementById('cellInput').value, 3);
+    function saveHistory(items) {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
+    }
 
-        if (!part3 || !part4) {
-            alert('입력 형식이 올바르지 않습니다. (예: 존 D/10, 렉 3, 칸 103)');
+    function addHistoryItem(payload) {
+        if (payload.zoneGroup === 'TEMP_LOT') {
             return;
         }
 
-        const convertedString = `${part1}${part2}${part3}${part4}`;
-        addHistoryItem(convertedString);
-        renderQRCode(convertedString);
+        const history = loadHistory();
+        const key = `${payload.zoneCode}|${payload.zoneNumber}|${payload.rack}|${payload.cell}`;
+        const nextHistory = [
+            { ...payload, key, timestamp: Date.now() },
+            ...history.filter((item) => item.key !== key)
+        ].slice(0, HISTORY_LIMIT);
+
+        saveHistory(nextHistory);
+        renderHistory();
+    }
+
+    function applyHistoryToInputs(item) {
+        const groupEntry = Object.entries(zoneGroups).find(([, group]) => group.codes.includes(item.zoneCode));
+        if (!groupEntry) return;
+
+        const [groupKey] = groupEntry;
+        const zoneGroupSelect = document.getElementById('zoneGroup');
+        const zoneCodeSelect = document.getElementById('zoneCode');
+        const zoneNumberSelect = document.getElementById('zoneNumber');
+
+        zoneGroupSelect.value = groupKey;
+        updateZoneCodeOptions();
+        zoneCodeSelect.value = item.zoneCode;
+        updateZoneNumberOptions(item.zoneNumber);
+        zoneNumberSelect.value = String(item.zoneNumber);
+
+        document.getElementById('rackInput').value = String(item.rack);
+        document.getElementById('cellInput').value = String(item.cell);
+        applyInputStateOnly();
+    }
+
+    function handleHistorySelect(item) {
+        applyHistoryToInputs(item);
+        renderQRCode(item.convertedString);
+    }
+
+    function renderHistory() {
+        const historyList = document.getElementById('history-list');
+        const history = loadHistory();
+
+        historyList.innerHTML = '';
+        history.forEach((item) => {
+            const li = document.createElement('li');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'history-item-btn';
+            button.textContent = `${formatHistoryTime(item.timestamp)} ${formatHistoryDisplay(item)}`;
+            button.addEventListener('click', () => handleHistorySelect(item));
+            li.appendChild(button);
+            historyList.appendChild(li);
+        });
+    }
+
+    function previewQR() {
+        const payload = getCurrentPayload();
+        if (!payload) return;
+        renderQRCode(payload.convertedString);
+    }
+
+    function convertAndSave() {
+        const payload = getCurrentPayload();
+        if (!payload) return;
+        renderQRCode(payload.convertedString);
+        addHistoryItem(payload);
     }
 
     window.onload = () => {
         initializeZoneInputs();
         document.getElementById('zoneGroup').addEventListener('change', () => {
             updateZoneCodeOptions();
-            applyTempLotDefaults();
-            generateQR();
+            applyDefaultsByGroup(true);
+            previewQR();
         });
         document.getElementById('zoneCode').addEventListener('change', () => {
             updateZoneNumberOptions();
-            applyTempLotDefaults();
-            generateQR();
+            applyInputStateOnly();
+            previewQR();
         });
-        document.getElementById('zoneNumber').addEventListener('change', generateQR);
-        document.getElementById('rackInput').addEventListener('input', generateQR);
-        document.getElementById('cellInput').addEventListener('input', generateQR);
+        document.getElementById('zoneNumber').addEventListener('change', previewQR);
+        document.getElementById('rackInput').addEventListener('input', previewQR);
+        document.getElementById('cellInput').addEventListener('input', previewQR);
+        document.getElementById('saveBtn').addEventListener('click', convertAndSave);
+
         renderHistory();
-        generateQR();
+        previewQR();
     };
 </script>
 

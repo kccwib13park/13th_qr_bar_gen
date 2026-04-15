@@ -7,21 +7,50 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 50px; background-color: #f4f4f9; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; }
-        input { padding: 10px; width: 250px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; margin-bottom: 10px; }
-        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: min(92vw, 760px); }
+        .input-row { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+        .field { flex: 1; text-align: left; }
+        .zone-group { display: flex; gap: 8px; }
+        .zone-group select { flex: 1; }
+        label { display: block; font-size: 14px; color: #555; margin-bottom: 4px; }
+        input, select { padding: 10px; width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; background: #fff; }
+        button { margin-top: 8px; padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
         button:hover { background-color: #0056b3; }
         #result-container { margin-top: 25px; }
         #result-text { font-weight: bold; color: #333; margin-bottom: 15px; font-size: 18px; }
         #qrcode { display: inline-block; }
+
+        @media (max-width: 620px) {
+            .input-row { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h2>QR 코드 생성기</h2>
-    <p>문자열을 입력하면 변환 후 QR을 생성합니다.</p>
-    <input type="text" id="userInput" value="1F-D10-3-103" placeholder="예: 1F-D10-3-103">
+    <p>입력값을 넣으면 <strong>1F</strong>가 자동으로 붙어 변환됩니다.</p>
+
+    <div class="input-row">
+        <div class="field">
+            <label for="zoneCode">존</label>
+            <div class="zone-group">
+                <select id="zoneCode" aria-label="존 코드"></select>
+                <select id="zoneNumber" aria-label="존 번호"></select>
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="rackInput">렉</label>
+            <input type="number" id="rackInput" value="23" min="0" inputmode="numeric" placeholder="예: 3">
+        </div>
+
+        <div class="field">
+            <label for="cellInput">칸</label>
+            <input type="number" id="cellInput" value="3" min="0" inputmode="numeric" placeholder="예: 103">
+        </div>
+    </div>
+
     <button onclick="generateQR()">변환 및 생성</button>
 
     <div id="result-container">
@@ -31,44 +60,154 @@
 </div>
 
 <script>
-    function generateQR() {
-        const input = document.getElementById('userInput').value;
-        const resultTextDiv = document.getElementById('result-text');
-        const qrcodeDiv = document.getElementById('qrcode');
+    const zoneRules = {
+        TEMP_LOT: [1, 1],
+        A: [1, 1],
+        AB: [1, 5],
+        AC: [1, 5],
+        AD: [1, 6],
+        AR: [1, 2],
+        AT: [1, 1],
+        AZ: [1, 1],
+        BA: [1, 2],
+        BB: [1, 2],
+        BC: [1, 2],
+        BD: [1, 2],
+        C: [1, 9],
+        D: [1, 11]
+    };
 
-        // 1. 문자열 변환 로직 (1F-D10-3-103 -> 1F0D1003102)
-        // 규칙: 하이픈(-)으로 분리 후 각 요소를 패딩 처리하고 마지막 숫자는 -1
-        const parts = input.split('-');
-        
-        if (parts.length < 4) {
-            alert("형식이 올바르지 않습니다. (예: 1F-D10-3-103)");
+    function initializeZoneInputs() {
+        const zoneCodeSelect = document.getElementById('zoneCode');
+        const zoneLabels = {
+            TEMP_LOT: '임시 지번',
+            A: 'A',
+            AB: 'AB',
+            AC: 'AC',
+            AD: 'AD',
+            AR: 'AR',
+            AT: 'AT',
+            AZ: 'AZ',
+            BA: 'BA',
+            BB: 'BB',
+            BC: 'BC',
+            BD: 'BD',
+            C: 'C',
+            D: 'D'
+        };
+
+        zoneCodeSelect.innerHTML = '';
+        Object.keys(zoneRules).forEach((code) => {
+            const option = document.createElement('option');
+            option.value = code;
+            option.textContent = zoneLabels[code] ?? code;
+            zoneCodeSelect.appendChild(option);
+        });
+
+        zoneCodeSelect.value = 'TEMP_LOT';
+        updateZoneNumberOptions();
+        applyTempLotDefaults();
+    }
+
+    function applyTempLotDefaults() {
+        const zoneCodeSelect = document.getElementById('zoneCode');
+        if (zoneCodeSelect.value !== 'TEMP_LOT') {
             return;
         }
 
-        const p1 = parts[0];                       // 1F
-        const p2 = parts[1].padStart(4, '0');      // D10 -> 0D10
-        const p3 = parts[2].padStart(2, '0');      // 3 -> 03
-        const p4 = (parseInt(parts[3]) - 1).toString(); // 103 -> 102
+        document.getElementById('zoneNumber').value = '1';
+        document.getElementById('rackInput').value = '23';
+        document.getElementById('cellInput').value = '3';
+    }
 
-        const convertedString = p1 + p2 + p3 + p4; // 1F0D1003102
+    function updateZoneNumberOptions() {
+        const zoneCodeSelect = document.getElementById('zoneCode');
+        const zoneNumberSelect = document.getElementById('zoneNumber');
+        const [start, end] = zoneRules[zoneCodeSelect.value];
+        zoneNumberSelect.disabled = zoneCodeSelect.value === 'TEMP_LOT';
 
-        // 화면에 변환된 결과 텍스트 표시
-        resultTextDiv.innerText = "변환 결과: " + convertedString;
+        const currentValue = Number(zoneNumberSelect.value);
+        zoneNumberSelect.innerHTML = '';
 
-        // 2. QR 코드 생성
-        qrcodeDiv.innerHTML = ""; // 기존 QR 코드 초기화
+        for (let value = start; value <= end; value += 1) {
+            const option = document.createElement('option');
+            option.value = String(value);
+            option.textContent = String(value);
+            zoneNumberSelect.appendChild(option);
+        }
+
+        if (currentValue >= start && currentValue <= end) {
+            zoneNumberSelect.value = String(currentValue);
+        } else {
+            zoneNumberSelect.value = String(start);
+        }
+    }
+
+    function resolveZoneValue(zoneCode, zoneNumber) {
+        if (zoneCode === 'TEMP_LOT') {
+            return { resolvedCode: 'B', resolvedNumber: 1 };
+        }
+
+        return { resolvedCode: zoneCode, resolvedNumber: Number(zoneNumber) };
+    }
+
+    function formatZonePart(zoneCode, zoneNumber) {
+        return `0${zoneCode}${String(zoneNumber).padStart(2, '0')}`;
+    }
+
+    function formatNumberPart(rawValue, length) {
+        const trimmed = String(rawValue).trim();
+
+        if (!/^\d+$/.test(trimmed)) {
+            return null;
+        }
+
+        return trimmed.padStart(length, '0');
+    }
+
+    function generateQR() {
+        const resultTextDiv = document.getElementById('result-text');
+        const qrcodeDiv = document.getElementById('qrcode');
+
+        const part1 = '1F';
+        const zoneCode = document.getElementById('zoneCode').value;
+        const zoneNumber = document.getElementById('zoneNumber').value;
+        const { resolvedCode, resolvedNumber } = resolveZoneValue(zoneCode, zoneNumber);
+        const part2 = formatZonePart(resolvedCode, resolvedNumber);
+        const part3 = formatNumberPart(document.getElementById('rackInput').value, 3);
+        const part4 = formatNumberPart(document.getElementById('cellInput').value, 3);
+
+        if (!part3 || !part4) {
+            alert('입력 형식이 올바르지 않습니다. (예: 존 D/10, 렉 3, 칸 103)');
+            return;
+        }
+
+        const convertedString = `${part1}${part2}${part3}${part4}`;
+        resultTextDiv.innerText = '변환 결과: ' + convertedString;
+
+        qrcodeDiv.innerHTML = '';
         new QRCode(qrcodeDiv, {
             text: convertedString,
             width: 180,
             height: 180,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
+            colorDark : '#000000',
+            colorLight : '#ffffff',
             correctLevel : QRCode.CorrectLevel.H
         });
     }
 
-    // 페이지 로드 시 바로 실행되게 하려면 아래 주석 해제
-    // window.onload = generateQR;
+    window.onload = () => {
+        initializeZoneInputs();
+        document.getElementById('zoneCode').addEventListener('change', () => {
+            updateZoneNumberOptions();
+            applyTempLotDefaults();
+            generateQR();
+        });
+        document.getElementById('zoneNumber').addEventListener('change', generateQR);
+        document.getElementById('rackInput').addEventListener('input', generateQR);
+        document.getElementById('cellInput').addEventListener('input', generateQR);
+        generateQR();
+    };
 </script>
 
 </body>

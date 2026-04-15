@@ -8,20 +8,23 @@
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 50px; background-color: #f4f4f9; }
         .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: min(92vw, 760px); }
-        .input-row { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
-        .field { flex: 1; text-align: left; }
-        .zone-group { display: flex; gap: 8px; }
-        .zone-group select { flex: 1; }
-        label { display: block; font-size: 14px; color: #555; margin-bottom: 4px; }
+        .section-label { font-size: 14px; color: #555; margin: 14px 0 6px; text-align: left; font-weight: 600; }
+        .input-row { display: grid; gap: 12px; margin-bottom: 8px; }
+        .zone-row { grid-template-columns: 1fr 1fr 1fr; }
+        .rack-cell-labels,
+        .rack-cell-row { grid-template-columns: 1fr 1fr; }
+        .mini-label { text-align: left; font-size: 14px; color: #555; }
         input, select { padding: 10px; width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; background: #fff; }
-        button { margin-top: 8px; padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button { margin-top: 12px; padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
         button:hover { background-color: #0056b3; }
         #result-container { margin-top: 25px; }
         #result-text { font-weight: bold; color: #333; margin-bottom: 15px; font-size: 18px; }
         #qrcode { display: inline-block; }
 
         @media (max-width: 620px) {
-            .input-row { flex-direction: column; }
+            .zone-row,
+            .rack-cell-labels,
+            .rack-cell-row { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -31,24 +34,20 @@
     <h2>QR 코드 생성기</h2>
     <p>입력값을 넣으면 <strong>1F</strong>가 자동으로 붙어 변환됩니다.</p>
 
-    <div class="input-row">
-        <div class="field">
-            <label for="zoneCode">존</label>
-            <div class="zone-group">
-                <select id="zoneCode" aria-label="존 코드"></select>
-                <select id="zoneNumber" aria-label="존 번호"></select>
-            </div>
-        </div>
+    <div class="section-label">존</div>
+    <div class="input-row zone-row">
+        <select id="zoneGroup" aria-label="존 분류"></select>
+        <select id="zoneCode" aria-label="존 코드"></select>
+        <select id="zoneNumber" aria-label="존 번호"></select>
+    </div>
 
-        <div class="field">
-            <label for="rackInput">렉</label>
-            <input type="number" id="rackInput" value="23" min="0" inputmode="numeric" placeholder="예: 3">
-        </div>
-
-        <div class="field">
-            <label for="cellInput">칸</label>
-            <input type="number" id="cellInput" value="3" min="0" inputmode="numeric" placeholder="예: 103">
-        </div>
+    <div class="input-row rack-cell-labels">
+        <div class="mini-label">렉</div>
+        <div class="mini-label">칸</div>
+    </div>
+    <div class="input-row rack-cell-row">
+        <input type="number" id="rackInput" value="23" min="0" inputmode="numeric" placeholder="예: 3">
+        <input type="number" id="cellInput" value="3" min="0" inputmode="numeric" placeholder="예: 103">
     </div>
 
     <button onclick="generateQR()">변환 및 생성</button>
@@ -60,6 +59,15 @@
 </div>
 
 <script>
+    const zoneGroups = {
+        TEMP_LOT: { label: '임시지번', codes: ['TEMP_LOT'] },
+        A_ZONE: { label: 'A존', codes: ['AB', 'AC', 'AD', 'AR', 'AT', 'AZ', 'A'] },
+        B_ZONE: { label: 'B존', codes: ['BA', 'BB', 'BC', 'BD'] },
+        CD_ZONE: { label: 'C/D존', codes: ['C', 'D'] },
+        MEZZANINE: { label: '메자닌', codes: ['E', 'F', 'G'] },
+        H_ZONE: { label: 'H존', codes: ['H'] }
+    };
+
     const zoneRules = {
         TEMP_LOT: [1, 1],
         A: [1, 1],
@@ -77,51 +85,51 @@
         D: [1, 11],
         E: [0, 1],
         F: [1, 20],
-        G: [1, 20]
+        G: [1, 20],
+        H: [1, 1]
     };
 
     function initializeZoneInputs() {
-        const zoneCodeSelect = document.getElementById('zoneCode');
-        const zoneLabels = {
-            TEMP_LOT: '임시 지번',
-            A: 'A',
-            AB: 'AB',
-            AC: 'AC',
-            AD: 'AD',
-            AR: 'AR',
-            AT: 'AT',
-            AZ: 'AZ',
-            BA: 'BA',
-            BB: 'BB',
-            BC: 'BC',
-            BD: 'BD',
-            C: 'C',
-            D: 'D',
-            E: 'E',
-            F: 'F',
-            G: 'G'
-        };
+        const zoneGroupSelect = document.getElementById('zoneGroup');
+        zoneGroupSelect.innerHTML = '';
 
-        zoneCodeSelect.innerHTML = '';
-        Object.keys(zoneRules).forEach((code) => {
+        Object.entries(zoneGroups).forEach(([groupKey, group]) => {
             const option = document.createElement('option');
-            option.value = code;
-            option.textContent = zoneLabels[code] ?? code;
-            zoneCodeSelect.appendChild(option);
+            option.value = groupKey;
+            option.textContent = group.label;
+            zoneGroupSelect.appendChild(option);
         });
 
-        zoneCodeSelect.value = 'TEMP_LOT';
-        updateZoneNumberOptions();
+        zoneGroupSelect.value = 'TEMP_LOT';
+        updateZoneCodeOptions();
         applyTempLotDefaults();
     }
 
-    function applyTempLotDefaults() {
+    function updateZoneCodeOptions() {
+        const zoneGroup = document.getElementById('zoneGroup').value;
         const zoneCodeSelect = document.getElementById('zoneCode');
+        const codes = zoneGroups[zoneGroup].codes;
+
+        zoneCodeSelect.innerHTML = '';
+        codes.forEach((code) => {
+            const option = document.createElement('option');
+            option.value = code;
+            option.textContent = code === 'TEMP_LOT' ? '임시지번' : code;
+            zoneCodeSelect.appendChild(option);
+        });
+
+        zoneCodeSelect.value = codes[0];
+        zoneCodeSelect.disabled = zoneGroup === 'TEMP_LOT';
+        updateZoneNumberOptions();
+    }
+
+    function applyTempLotDefaults() {
+        const zoneCode = document.getElementById('zoneCode').value;
         const zoneNumberInput = document.getElementById('zoneNumber');
         const rackInput = document.getElementById('rackInput');
         const cellInput = document.getElementById('cellInput');
 
-        if (zoneCodeSelect.value === 'TEMP_LOT') {
+        if (zoneCode === 'TEMP_LOT') {
             zoneNumberInput.value = '1';
             rackInput.value = '23';
             cellInput.value = '3';
@@ -135,10 +143,9 @@
     }
 
     function updateZoneNumberOptions() {
-        const zoneCodeSelect = document.getElementById('zoneCode');
+        const zoneCode = document.getElementById('zoneCode').value;
         const zoneNumberSelect = document.getElementById('zoneNumber');
-        const [start, end] = zoneRules[zoneCodeSelect.value];
-        zoneNumberSelect.disabled = zoneCodeSelect.value === 'TEMP_LOT';
+        const [start, end] = zoneRules[zoneCode];
 
         const currentValue = Number(zoneNumberSelect.value);
         zoneNumberSelect.innerHTML = '';
@@ -149,6 +156,8 @@
             option.textContent = String(value);
             zoneNumberSelect.appendChild(option);
         }
+
+        zoneNumberSelect.disabled = zoneCode === 'TEMP_LOT' || (start === end);
 
         if (currentValue >= start && currentValue <= end) {
             zoneNumberSelect.value = String(currentValue);
@@ -218,6 +227,11 @@
 
     window.onload = () => {
         initializeZoneInputs();
+        document.getElementById('zoneGroup').addEventListener('change', () => {
+            updateZoneCodeOptions();
+            applyTempLotDefaults();
+            generateQR();
+        });
         document.getElementById('zoneCode').addEventListener('change', () => {
             updateZoneNumberOptions();
             applyTempLotDefaults();

@@ -171,6 +171,12 @@
         10: '스위티오 바나나 1kg'
     };
 
+    const ENCODING_RULES = {
+        prefix: '1F',
+        rackDigits: 2,
+        cellDigits: 3
+    };
+
     const HISTORY_KEY = 'qr_generator_history_v2';
     const DIRECT_HISTORY_KEY = 'qr_generator_direct_history_v1';
     const HISTORY_LIMIT = 20;
@@ -367,29 +373,49 @@
         return trimmed.padStart(length, '0');
     }
 
+    function buildConvertedString({ zoneCode, zoneNumber, rack, cell }) {
+        const { resolvedCode, resolvedNumber } = resolveZoneValue(zoneCode, zoneNumber);
+        const zonePart = formatZonePart(resolvedCode, resolvedNumber);
+        const rackPart = formatNumberPart(rack, ENCODING_RULES.rackDigits);
+        const cellPart = formatNumberPart(cell, ENCODING_RULES.cellDigits);
+
+        if (!rackPart || !cellPart) {
+            return null;
+        }
+
+        return {
+            convertedString: `${ENCODING_RULES.prefix}${zonePart}${rackPart}${cellPart}`,
+            resolvedCode,
+            resolvedNumber
+        };
+    }
+
     function getCurrentPayload() {
         applyInputStateOnly();
 
-        const part1 = '1F';
         const zoneCode = document.getElementById('zoneCode').value;
         const zoneNumber = document.getElementById('zoneNumber').value;
-        const { resolvedCode, resolvedNumber } = resolveZoneValue(zoneCode, zoneNumber);
-        const part2 = formatZonePart(resolvedCode, resolvedNumber);
-        const part3 = formatNumberPart(document.getElementById('rackInput').value, 3);
-        const part4 = formatNumberPart(document.getElementById('cellInput').value, 3);
+        const rackValue = document.getElementById('rackInput').value;
+        const cellValue = document.getElementById('cellInput').value;
+        const converted = buildConvertedString({
+            zoneCode,
+            zoneNumber,
+            rack: rackValue,
+            cell: cellValue
+        });
 
-        if (!part3 || !part4) {
+        if (!converted) {
             alert('입력 형식이 올바르지 않습니다. (예: 존 D/10, 렉 3, 칸 103)');
             return null;
         }
 
         return {
-            convertedString: `${part1}${part2}${part3}${part4}`,
+            convertedString: converted.convertedString,
             zoneGroup: document.getElementById('zoneGroup').value,
-            zoneCode: resolvedCode,
-            zoneNumber: resolvedNumber,
-            rack: Number(document.getElementById('rackInput').value),
-            cell: Number(document.getElementById('cellInput').value)
+            zoneCode: converted.resolvedCode,
+            zoneNumber: converted.resolvedNumber,
+            rack: Number(rackValue),
+            cell: Number(cellValue)
         };
     }
 

@@ -57,8 +57,8 @@
         <div class="mini-label">칸</div>
     </div>
     <div class="input-row rack-cell-row">
-        <input type="number" id="rackInput" value="23" min="0" inputmode="numeric" placeholder="예: 3">
-        <input type="number" id="cellInput" value="3" min="0" inputmode="numeric" placeholder="예: 103">
+        <select id="rackInput" aria-label="렉 번호"></select>
+        <select id="cellInput" aria-label="칸 번호"></select>
     </div>
 
     <button id="saveBtn" type="button">변환 및 저장</button>
@@ -104,6 +104,57 @@
         MEZZANINE: { code: 'E', number: 0, rack: 1, cell: 101 },
         H_ZONE: { code: 'H', number: 1, rack: 1, cell: 1 }
     };
+    const DEFAULT_RACK_RANGE = [0, 50];
+    const DEFAULT_CELL_OPTIONS = [1, 2, 3, 4, 101, 102, 103, 104, 201, 202, 203, 204, 301, 302, 303, 304, 401, 402, 403, 404];
+    const locationInputRules = {
+        // zoneRuleKey = `${zoneCode}-${zoneNumber}` 형태. 존별 확장 가능.
+        'AC-2': { rackRange: [1, 30], cellOptions: [1], lockCell: true },
+        'AD-2': { rackRange: [1, 10], cellOptions: [1], lockCell: true }
+    };
+    const AC2_RACK_PRODUCTS = {
+        1: '창녕 양파 1.5kg',
+        2: '한통 양배추',
+        3: '제주 흙당근',
+        4: '포항초 시금치',
+        5: '제각각 양파 1.5kg',
+        6: '참타리 버섯',
+        7: '감자 1kg',
+        8: 'EMPTY',
+        9: '스태비아 대추방울토마토',
+        10: '양파 1.5kg',
+        11: '와일드 루꼴라 100g',
+        12: 'M) 진도대파 700g',
+        13: '성주꼬마참외 900g',
+        14: '다다기오이 3입',
+        15: '새송이버섯 400g',
+        16: '고속&아삭 유러피안채소팩 300g',
+        17: 'M) 한통양배추 900g',
+        18: 'M) 당도선별 천혜양 1kg',
+        19: '영암 꿀고구마 1kg',
+        20: '국산블루베리 200g',
+        21: '제각각 새송이버섯 300g + 300g',
+        22: '채소믹스 500g',
+        23: 'EMPTY',
+        24: 'EMPTY',
+        25: '채소믹스 1kg',
+        26: 'M) 깐대파 500g',
+        27: '감자 2kg',
+        28: '싱그러운 유러피안 샐러드믹스 200g',
+        29: '13brix 못생맛있사과 1.3kg',
+        30: '파프리카 2입'
+    };
+    const AD2_RACK_PRODUCTS = {
+        1: '14brix 못생맛있사과 1.5kg',
+        2: '클래식 우유 식빵',
+        3: '제주산 양배추 1통 (900g)',
+        4: '로얄저지 우유 식빵',
+        5: '양념 소불고기 1kg',
+        6: '대저짭짤이토마토 600g',
+        7: '알배기배추',
+        8: '춘천식 닭갈비 1kg',
+        9: '장수콩나물 600g',
+        10: '스위티오 바나나 1kg'
+    };
 
     const HISTORY_KEY = 'qr_generator_history_v2';
     const HISTORY_LIMIT = 20;
@@ -113,6 +164,8 @@
 
     function getNumberOptionLabel(zoneCode, value) {
         if (zoneCode === 'AB' && value === 5) return '5 (보충 지번)';
+        if (zoneCode === 'AC' && value === 2) return '2 (벌크/원빠존)';
+        if (zoneCode === 'AD' && value === 2) return '2 (벌크존)';
         if (zoneCode === 'D' && value === 8) return '8 (육류 전용 보충 지번)';
         if (zoneCode === 'D' && value === 9) return '9 (소량 보충 지번)';
         if (zoneCode === 'D' && value === 10) return '10 (소량 보충 지번)';
@@ -136,6 +189,84 @@
         zoneGroupSelect.value = 'TEMP_LOT';
         updateZoneCodeOptions();
         applyDefaultsByGroup(true);
+    }
+
+    function createRange(start, end) {
+        const list = [];
+        for (let value = start; value <= end; value += 1) list.push(value);
+        return list;
+    }
+
+    function getRackOptionLabel(zoneCode, zoneNumber, rackValue) {
+        if (zoneCode === 'AC' && zoneNumber === 2) {
+            const zoneType = rackValue <= 15 ? '벌크존' : '원빠존';
+            const productName = AC2_RACK_PRODUCTS[rackValue] || 'EMPTY';
+            return `${rackValue} (${zoneType} | ${productName})`;
+        }
+        if (zoneCode === 'AD' && zoneNumber === 2) {
+            const productName = AD2_RACK_PRODUCTS[rackValue] || 'EMPTY';
+            return `${rackValue} (벌크존 | ${productName})`;
+        }
+        return String(rackValue);
+    }
+
+    function fillSelectOptions(selectElement, values, preferredValue = null, labelResolver = null) {
+        const currentValue = Number(selectElement.value);
+        const targetValue = preferredValue ?? currentValue;
+        selectElement.innerHTML = '';
+
+        values.forEach((value) => {
+            const option = document.createElement('option');
+            option.value = String(value);
+            option.textContent = labelResolver ? labelResolver(value) : String(value);
+            selectElement.appendChild(option);
+        });
+
+        if (!values.length) return;
+        if (values.includes(targetValue)) {
+            selectElement.value = String(targetValue);
+        } else {
+            selectElement.value = String(values[0]);
+        }
+    }
+
+    function getLocationRule(zoneCode, zoneNumber) {
+        const zoneRuleKey = `${zoneCode}-${Number(zoneNumber)}`;
+        return locationInputRules[zoneRuleKey] || null;
+    }
+
+    function updateRackCellOptions(preferredRack = null, preferredCell = null) {
+        const zoneGroup = document.getElementById('zoneGroup').value;
+        const zoneCode = document.getElementById('zoneCode').value;
+        const zoneNumber = Number(document.getElementById('zoneNumber').value);
+        const rackInput = document.getElementById('rackInput');
+        const cellInput = document.getElementById('cellInput');
+        const locationRule = getLocationRule(zoneCode, zoneNumber);
+
+        const rackRange = locationRule?.rackRange || DEFAULT_RACK_RANGE;
+        const cellOptions = locationRule?.cellOptions || DEFAULT_CELL_OPTIONS;
+        fillSelectOptions(
+            rackInput,
+            createRange(rackRange[0], rackRange[1]),
+            preferredRack,
+            (value) => getRackOptionLabel(zoneCode, zoneNumber, value)
+        );
+        fillSelectOptions(cellInput, cellOptions, preferredCell);
+
+        const tempLot = zoneGroup === 'TEMP_LOT';
+        const hZone = zoneGroup === 'H_ZONE';
+        const lockCell = Boolean(locationRule?.lockCell);
+
+        rackInput.disabled = tempLot;
+        cellInput.disabled = tempLot || hZone || lockCell;
+
+        if (hZone || lockCell) {
+            cellInput.value = '1';
+        }
+        if (tempLot) {
+            rackInput.value = '23';
+            cellInput.value = '3';
+        }
     }
 
     function updateZoneCodeOptions() {
@@ -196,32 +327,11 @@
         zoneCodeSelect.value = defaults.code;
         updateZoneNumberOptions(defaults.number);
 
-        rackInput.value = String(defaults.rack);
-        cellInput.value = String(defaults.cell);
-
-        const tempLot = zoneGroup === 'TEMP_LOT';
-        const hZone = zoneGroup === 'H_ZONE';
-        rackInput.disabled = tempLot;
-        cellInput.disabled = tempLot || hZone;
+        updateRackCellOptions(defaults.rack, defaults.cell);
     }
 
     function applyInputStateOnly() {
-        const zoneGroup = document.getElementById('zoneGroup').value;
-        const rackInput = document.getElementById('rackInput');
-        const cellInput = document.getElementById('cellInput');
-
-        const tempLot = zoneGroup === 'TEMP_LOT';
-        const hZone = zoneGroup === 'H_ZONE';
-        rackInput.disabled = tempLot;
-        cellInput.disabled = tempLot || hZone;
-
-        if (hZone) {
-            cellInput.value = '1';
-        }
-        if (tempLot) {
-            rackInput.value = '23';
-            cellInput.value = '3';
-        }
+        updateRackCellOptions();
     }
 
     function resolveZoneValue(zoneCode, zoneNumber) {
@@ -351,7 +461,7 @@
 
         document.getElementById('rackInput').value = String(item.rack);
         document.getElementById('cellInput').value = String(item.cell);
-        applyInputStateOnly();
+        updateRackCellOptions(item.rack, item.cell);
     }
 
     function handleHistorySelect(item) {
@@ -414,12 +524,15 @@
         });
         document.getElementById('zoneCode').addEventListener('change', () => {
             updateZoneNumberOptions();
-            applyInputStateOnly();
+            updateRackCellOptions();
             previewQR();
         });
-        document.getElementById('zoneNumber').addEventListener('change', previewQR);
-        document.getElementById('rackInput').addEventListener('input', previewQR);
-        document.getElementById('cellInput').addEventListener('input', previewQR);
+        document.getElementById('zoneNumber').addEventListener('change', () => {
+            updateRackCellOptions();
+            previewQR();
+        });
+        document.getElementById('rackInput').addEventListener('change', previewQR);
+        document.getElementById('cellInput').addEventListener('change', previewQR);
         document.getElementById('saveBtn').addEventListener('click', convertAndSave);
         document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
 

@@ -25,17 +25,22 @@
         .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
         #history-container h3 { margin: 0; font-size: 16px; color: #333; }
         #history-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+        #direct-history-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
         #history-list li { margin: 0; }
+        #direct-history-list li { margin: 0; }
         .history-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
         .history-item-btn { width: 100%; text-align: left; border: 1px solid #d9d9d9; border-radius: 8px; background: #fafafa; padding: 9px 10px; font-size: 14px; color: #333; cursor: pointer; word-break: break-all; margin-top: 0; }
         .history-item-btn:hover { background: #eef5ff; border-color: #9ec3ff; }
         .emoji-btn { border: 1px solid #d9d9d9; background: #fff; border-radius: 8px; padding: 6px 8px; cursor: pointer; font-size: 14px; line-height: 1; }
         .emoji-btn:hover { background: #f3f4f6; }
+        .history-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .history-column-title { margin: 0 0 8px; font-size: 14px; color: #333; }
 
         @media (max-width: 620px) {
             .zone-row { grid-template-columns: 1fr; }
             .rack-cell-labels,
             .rack-cell-row { grid-template-columns: 1fr 1fr; }
+            .history-columns { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -44,6 +49,7 @@
 <div class="container">
     <h2>QR 코드 생성기</h2>
     <p>입력값을 넣으면 <strong>1F</strong>가 자동으로 붙어 변환됩니다.</p>
+    <input id="directInput" type="text" placeholder="직접 입력 텍스트(입력값 그대로 QR 변환)">
 
     <div class="section-label">존</div>
     <div class="input-row zone-row">
@@ -70,10 +76,19 @@
 
     <div id="history-container">
         <div class="history-header">
-            <h3>최근 생성 히스토리 (최대 20개)</h3>
+            <h3>최근 생성 히스토리 (각 최대 20개)</h3>
             <button type="button" id="clearHistoryBtn" class="emoji-btn" title="전체 삭제">🗑️ 전체</button>
         </div>
-        <ol id="history-list"></ol>
+        <div class="history-columns">
+            <div>
+                <h4 class="history-column-title">직접 입력 히스토리</h4>
+                <ol id="direct-history-list"></ol>
+            </div>
+            <div>
+                <h4 class="history-column-title">존/렉/칸 히스토리</h4>
+                <ol id="history-list"></ol>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -157,6 +172,7 @@
     };
 
     const HISTORY_KEY = 'qr_generator_history_v2';
+    const DIRECT_HISTORY_KEY = 'qr_generator_direct_history_v1';
     const HISTORY_LIMIT = 20;
     const WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
@@ -416,6 +432,32 @@
         localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
     }
 
+    function loadDirectHistory() {
+        try {
+            const raw = localStorage.getItem(DIRECT_HISTORY_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function saveDirectHistory(items) {
+        localStorage.setItem(DIRECT_HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
+    }
+
+    function addDirectHistoryItem(convertedString) {
+        const history = loadDirectHistory();
+        const key = convertedString;
+        const nextHistory = [
+            { key, convertedString, timestamp: Date.now() },
+            ...history.filter((item) => item.key !== key)
+        ].slice(0, HISTORY_LIMIT);
+
+        saveDirectHistory(nextHistory);
+        renderDirectHistory();
+    }
+
     function addHistoryItem(payload) {
         if (payload.zoneGroup === 'TEMP_LOT') {
             return;
@@ -432,6 +474,12 @@
         renderHistory();
     }
 
+    function removeDirectHistoryItem(key) {
+        const history = loadDirectHistory().filter((item) => item.key !== key);
+        saveDirectHistory(history);
+        renderDirectHistory();
+    }
+
 
     function removeHistoryItem(key) {
         const history = loadHistory().filter((item) => item.key !== key);
@@ -441,7 +489,9 @@
 
     function clearHistory() {
         saveHistory([]);
+        saveDirectHistory([]);
         renderHistory();
+        renderDirectHistory();
     }
 
     function applyHistoryToInputs(item) {
@@ -467,6 +517,44 @@
     function handleHistorySelect(item) {
         applyHistoryToInputs(item);
         renderQRCode(item.convertedString);
+    }
+
+    function handleDirectHistorySelect(item) {
+        document.getElementById('directInput').value = item.convertedString;
+        renderQRCode(item.convertedString);
+    }
+
+    function renderDirectHistory() {
+        const historyList = document.getElementById('direct-history-list');
+        const history = loadDirectHistory();
+
+        historyList.innerHTML = '';
+        history.forEach((item) => {
+            const li = document.createElement('li');
+            const row = document.createElement('div');
+            row.className = 'history-row';
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'history-item-btn';
+            button.textContent = `${formatHistoryTime(item.timestamp)} ${item.convertedString}`;
+            button.addEventListener('click', () => handleDirectHistorySelect(item));
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'emoji-btn';
+            deleteBtn.title = '삭제';
+            deleteBtn.textContent = '❌';
+            deleteBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                removeDirectHistoryItem(item.key);
+            });
+
+            row.appendChild(button);
+            row.appendChild(deleteBtn);
+            li.appendChild(row);
+            historyList.appendChild(li);
+        });
     }
 
     function renderHistory() {
@@ -503,12 +591,23 @@
     }
 
     function previewQR() {
+        const directText = document.getElementById('directInput').value.trim();
+        if (directText) {
+            renderQRCode(directText);
+            return;
+        }
         const payload = getCurrentPayload();
         if (!payload) return;
         renderQRCode(payload.convertedString);
     }
 
     function convertAndSave() {
+        const directText = document.getElementById('directInput').value.trim();
+        if (directText) {
+            renderQRCode(directText);
+            addDirectHistoryItem(directText);
+            return;
+        }
         const payload = getCurrentPayload();
         if (!payload) return;
         renderQRCode(payload.convertedString);
@@ -527,6 +626,7 @@
             updateRackCellOptions();
             previewQR();
         });
+        document.getElementById('directInput').addEventListener('input', previewQR);
         document.getElementById('zoneNumber').addEventListener('change', () => {
             updateRackCellOptions();
             previewQR();
@@ -537,6 +637,7 @@
         document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
 
         renderHistory();
+        renderDirectHistory();
         previewQR();
     };
 </script>

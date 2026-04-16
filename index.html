@@ -57,8 +57,8 @@
         <div class="mini-label">칸</div>
     </div>
     <div class="input-row rack-cell-row">
-        <input type="number" id="rackInput" value="23" min="0" inputmode="numeric" placeholder="예: 3">
-        <input type="number" id="cellInput" value="3" min="0" inputmode="numeric" placeholder="예: 103">
+        <select id="rackInput" aria-label="렉 번호"></select>
+        <select id="cellInput" aria-label="칸 번호"></select>
     </div>
 
     <button id="saveBtn" type="button">변환 및 저장</button>
@@ -104,6 +104,13 @@
         MEZZANINE: { code: 'E', number: 0, rack: 1, cell: 101 },
         H_ZONE: { code: 'H', number: 1, rack: 1, cell: 1 }
     };
+    const DEFAULT_RACK_RANGE = [0, 50];
+    const DEFAULT_CELL_OPTIONS = [1, 2, 3, 4, 101, 102, 103, 104, 201, 202, 203, 204, 301, 302, 303, 304, 401, 402, 403, 404];
+    const locationInputRules = {
+        // zoneRuleKey = `${zoneCode}-${zoneNumber}` 형태. 존별 확장 가능.
+        'AC-2': { rackRange: [1, 30], cellOptions: [1], lockCell: true },
+        'AD-2': { rackRange: [1, 10], cellOptions: [1], lockCell: true }
+    };
 
     const HISTORY_KEY = 'qr_generator_history_v2';
     const HISTORY_LIMIT = 20;
@@ -136,6 +143,66 @@
         zoneGroupSelect.value = 'TEMP_LOT';
         updateZoneCodeOptions();
         applyDefaultsByGroup(true);
+    }
+
+    function createRange(start, end) {
+        const list = [];
+        for (let value = start; value <= end; value += 1) list.push(value);
+        return list;
+    }
+
+    function fillSelectOptions(selectElement, values, preferredValue = null) {
+        const currentValue = Number(selectElement.value);
+        const targetValue = preferredValue ?? currentValue;
+        selectElement.innerHTML = '';
+
+        values.forEach((value) => {
+            const option = document.createElement('option');
+            option.value = String(value);
+            option.textContent = String(value);
+            selectElement.appendChild(option);
+        });
+
+        if (!values.length) return;
+        if (values.includes(targetValue)) {
+            selectElement.value = String(targetValue);
+        } else {
+            selectElement.value = String(values[0]);
+        }
+    }
+
+    function getLocationRule(zoneCode, zoneNumber) {
+        const zoneRuleKey = `${zoneCode}-${Number(zoneNumber)}`;
+        return locationInputRules[zoneRuleKey] || null;
+    }
+
+    function updateRackCellOptions(preferredRack = null, preferredCell = null) {
+        const zoneGroup = document.getElementById('zoneGroup').value;
+        const zoneCode = document.getElementById('zoneCode').value;
+        const zoneNumber = Number(document.getElementById('zoneNumber').value);
+        const rackInput = document.getElementById('rackInput');
+        const cellInput = document.getElementById('cellInput');
+        const locationRule = getLocationRule(zoneCode, zoneNumber);
+
+        const rackRange = locationRule?.rackRange || DEFAULT_RACK_RANGE;
+        const cellOptions = locationRule?.cellOptions || DEFAULT_CELL_OPTIONS;
+        fillSelectOptions(rackInput, createRange(rackRange[0], rackRange[1]), preferredRack);
+        fillSelectOptions(cellInput, cellOptions, preferredCell);
+
+        const tempLot = zoneGroup === 'TEMP_LOT';
+        const hZone = zoneGroup === 'H_ZONE';
+        const lockCell = Boolean(locationRule?.lockCell);
+
+        rackInput.disabled = tempLot;
+        cellInput.disabled = tempLot || hZone || lockCell;
+
+        if (hZone || lockCell) {
+            cellInput.value = '1';
+        }
+        if (tempLot) {
+            rackInput.value = '23';
+            cellInput.value = '3';
+        }
     }
 
     function updateZoneCodeOptions() {
@@ -196,32 +263,11 @@
         zoneCodeSelect.value = defaults.code;
         updateZoneNumberOptions(defaults.number);
 
-        rackInput.value = String(defaults.rack);
-        cellInput.value = String(defaults.cell);
-
-        const tempLot = zoneGroup === 'TEMP_LOT';
-        const hZone = zoneGroup === 'H_ZONE';
-        rackInput.disabled = tempLot;
-        cellInput.disabled = tempLot || hZone;
+        updateRackCellOptions(defaults.rack, defaults.cell);
     }
 
     function applyInputStateOnly() {
-        const zoneGroup = document.getElementById('zoneGroup').value;
-        const rackInput = document.getElementById('rackInput');
-        const cellInput = document.getElementById('cellInput');
-
-        const tempLot = zoneGroup === 'TEMP_LOT';
-        const hZone = zoneGroup === 'H_ZONE';
-        rackInput.disabled = tempLot;
-        cellInput.disabled = tempLot || hZone;
-
-        if (hZone) {
-            cellInput.value = '1';
-        }
-        if (tempLot) {
-            rackInput.value = '23';
-            cellInput.value = '3';
-        }
+        updateRackCellOptions();
     }
 
     function resolveZoneValue(zoneCode, zoneNumber) {
@@ -351,7 +397,7 @@
 
         document.getElementById('rackInput').value = String(item.rack);
         document.getElementById('cellInput').value = String(item.cell);
-        applyInputStateOnly();
+        updateRackCellOptions(item.rack, item.cell);
     }
 
     function handleHistorySelect(item) {
@@ -414,12 +460,15 @@
         });
         document.getElementById('zoneCode').addEventListener('change', () => {
             updateZoneNumberOptions();
-            applyInputStateOnly();
+            updateRackCellOptions();
             previewQR();
         });
-        document.getElementById('zoneNumber').addEventListener('change', previewQR);
-        document.getElementById('rackInput').addEventListener('input', previewQR);
-        document.getElementById('cellInput').addEventListener('input', previewQR);
+        document.getElementById('zoneNumber').addEventListener('change', () => {
+            updateRackCellOptions();
+            previewQR();
+        });
+        document.getElementById('rackInput').addEventListener('change', previewQR);
+        document.getElementById('cellInput').addEventListener('change', previewQR);
         document.getElementById('saveBtn').addEventListener('click', convertAndSave);
         document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
 

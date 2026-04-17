@@ -103,24 +103,14 @@
   },
   "locationInputRules": {
     "AC-2": {
-      "rackRange": [
-        1,
-        30
-      ],
-      "cellOptions": [
-        1
-      ],
+      "rackRange": [1, 30],
+      "cellOptions": [1],
       "lockCell": true,
       "fixedCell": 1
     },
     "AD-2": {
-      "rackRange": [
-        1,
-        10
-      ],
-      "cellOptions": [
-        1
-      ],
+      "rackRange": [1, 10],
+      "cellOptions": [1],
       "lockCell": true,
       "fixedCell": 1
     }

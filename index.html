@@ -392,7 +392,9 @@
     }
 
     function formatZonePart(zoneCode, zoneNumber) {
-        return `0${zoneCode}${String(zoneNumber).padStart(2, '0')}`;
+        const normalizedCode = String(zoneCode).trim();
+        const codePrefix = normalizedCode.length === 1 ? `0${normalizedCode}` : normalizedCode;
+        return `${codePrefix}${String(zoneNumber).padStart(2, '0')}`;
     }
 
     function formatNumberPart(rawValue, length) {

@@ -102,15 +102,6 @@
         H_ZONE: { label: 'H존', codes: ['H'] }
     };
 
-    const zoneRules = {
-        TEMP_LOT: [1, 1],
-        A: [1, 1], AB: [1, 5], AC: [1, 5], AD: [1, 6], AR: [1, 2], AT: [1, 1], AZ: [1, 1],
-        BA: [1, 2], BB: [1, 2], BC: [1, 2], BD: [1, 2],
-        C: [1, 9], D: [1, 11],
-        E: [0, 1], F: [1, 20], G: [1, 20],
-        H: [1, 1]
-    };
-
     const groupDefaults = {
         TEMP_LOT: { code: 'TEMP_LOT', number: 1, rack: 23, cell: 3 },
         A_ZONE: { code: 'AB', number: 5, rack: 1, cell: 101 },
@@ -119,13 +110,27 @@
         MEZZANINE: { code: 'E', number: 0, rack: 1, cell: 101 },
         H_ZONE: { code: 'H', number: 1, rack: 1, cell: 1 }
     };
-    const DEFAULT_RACK_RANGE = [0, 50];
-    const DEFAULT_CELL_OPTIONS = [1, 2, 3, 4, 101, 102, 103, 104, 201, 202, 203, 204, 301, 302, 303, 304, 401, 402, 403, 404];
-    const locationInputRules = {
-        // zoneRuleKey = `${zoneCode}-${zoneNumber}` 형태. 존별 확장 가능.
-        'AC-2': { rackRange: [1, 30], cellOptions: [1], lockCell: true },
-        'AD-2': { rackRange: [1, 10], cellOptions: [1], lockCell: true }
-    };
+    const RANGE_CONFIG_URL = './data/location-range-config.json';
+    const DEFAULT_RANGE_CONFIG = Object.freeze({
+        zoneRules: {
+            TEMP_LOT: [1, 1],
+            A: [1, 1], AB: [1, 5], AC: [1, 5], AD: [1, 6], AR: [1, 2], AT: [1, 1], AZ: [1, 1],
+            BA: [1, 2], BB: [1, 2], BC: [1, 2], BD: [1, 2],
+            C: [1, 9], D: [1, 11],
+            E: [0, 1], F: [1, 20], G: [1, 20],
+            H: [1, 1]
+        },
+        rackCellDefaults: {
+            rackRange: [0, 50],
+            cellOptions: [1, 2, 3, 4, 101, 102, 103, 104, 201, 202, 203, 204, 301, 302, 303, 304, 401, 402, 403, 404]
+        },
+        locationInputRules: {
+            // zoneRuleKey = `${zoneCode}-${zoneNumber}` 형태. 존별 확장 가능.
+            'AC-2': { rackRange: [1, 30], cellOptions: [1], lockCell: true },
+            'AD-2': { rackRange: [1, 10], cellOptions: [1], lockCell: true }
+        }
+    });
+    let rangeConfig = DEFAULT_RANGE_CONFIG;
     const DISPLAY_CONFIG_URL = './data/location-display-config.json';
     const DEFAULT_DISPLAY_CONFIG = Object.freeze({
         numberOptionLabels: {},
@@ -146,6 +151,25 @@
 
     function pad2(n) { return String(n).padStart(2, '0'); }
 
+    async function loadRangeConfig() {
+        try {
+            const response = await fetch(RANGE_CONFIG_URL, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`범위 설정 파일 로드 실패: ${response.status}`);
+            const json = await response.json();
+            rangeConfig = {
+                zoneRules: json?.zoneRules || DEFAULT_RANGE_CONFIG.zoneRules,
+                rackCellDefaults: {
+                    rackRange: json?.rackCellDefaults?.rackRange || DEFAULT_RANGE_CONFIG.rackCellDefaults.rackRange,
+                    cellOptions: json?.rackCellDefaults?.cellOptions || DEFAULT_RANGE_CONFIG.rackCellDefaults.cellOptions
+                },
+                locationInputRules: json?.locationInputRules || DEFAULT_RANGE_CONFIG.locationInputRules
+            };
+        } catch (error) {
+            console.warn('범위 설정 파일을 읽지 못해 기본 설정으로 동작합니다.', error);
+            rangeConfig = DEFAULT_RANGE_CONFIG;
+        }
+    }
+
     async function loadDisplayConfig() {
         try {
             const response = await fetch(DISPLAY_CONFIG_URL, { cache: 'no-store' });
@@ -161,8 +185,8 @@
         }
     }
 
-    async function hydrateDisplayConfig() {
-        await loadDisplayConfig();
+    async function hydrateExternalConfigs() {
+        await Promise.all([loadRangeConfig(), loadDisplayConfig()]);
 
         const zoneNumberValue = Number(document.getElementById('zoneNumber').value);
         const rackValue = Number(document.getElementById('rackInput').value);
@@ -252,7 +276,7 @@
 
     function getLocationRule(zoneCode, zoneNumber) {
         const zoneRuleKey = `${zoneCode}-${Number(zoneNumber)}`;
-        return locationInputRules[zoneRuleKey] || null;
+        return rangeConfig.locationInputRules[zoneRuleKey] || null;
     }
 
     function updateRackCellOptions(preferredRack = null, preferredCell = null) {
@@ -263,8 +287,8 @@
         const cellInput = document.getElementById('cellInput');
         const locationRule = getLocationRule(zoneCode, zoneNumber);
 
-        const rackRange = locationRule?.rackRange || DEFAULT_RACK_RANGE;
-        const cellOptions = locationRule?.cellOptions || DEFAULT_CELL_OPTIONS;
+        const rackRange = locationRule?.rackRange || rangeConfig.rackCellDefaults.rackRange;
+        const cellOptions = locationRule?.cellOptions || rangeConfig.rackCellDefaults.cellOptions;
         fillSelectOptions(
             rackInput,
             createRange(rackRange[0], rackRange[1]),
@@ -310,7 +334,7 @@
     function updateZoneNumberOptions(preferredNumber = null) {
         const zoneCode = document.getElementById('zoneCode').value;
         const zoneNumberSelect = document.getElementById('zoneNumber');
-        const [start, end] = zoneRules[zoneCode];
+        const [start, end] = rangeConfig.zoneRules[zoneCode] || DEFAULT_RANGE_CONFIG.zoneRules[zoneCode] || [1, 1];
 
         const currentValue = Number(zoneNumberSelect.value);
         const targetValue = preferredNumber ?? currentValue;
@@ -662,7 +686,7 @@
         renderHistory();
         renderDirectHistory();
         previewQR();
-        hydrateDisplayConfig();
+        hydrateExternalConfigs();
     };
 </script>
 

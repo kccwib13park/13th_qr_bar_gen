@@ -126,8 +126,12 @@
         },
         locationInputRules: {
             // zoneRuleKey = `${zoneCode}-${zoneNumber}` 형태. 존별 확장 가능.
-            'AC-2': { rackRange: [1, 30], cellOptions: [1], lockCell: true },
-            'AD-2': { rackRange: [1, 10], cellOptions: [1], lockCell: true }
+            'AC-2': { rackRange: [1, 30], cellOptions: [1], lockCell: true, fixedCell: 1 },
+            'AD-2': { rackRange: [1, 10], cellOptions: [1], lockCell: true, fixedCell: 1 }
+        },
+        groupInputRules: {
+            TEMP_LOT: { disableRack: true, disableCell: true, fixedRack: 23, fixedCell: 3 },
+            H_ZONE: { disableCell: true, fixedCell: 1 }
         }
     });
     let rangeConfig = DEFAULT_RANGE_CONFIG;
@@ -162,7 +166,8 @@
                     rackRange: json?.rackCellDefaults?.rackRange || DEFAULT_RANGE_CONFIG.rackCellDefaults.rackRange,
                     cellOptions: json?.rackCellDefaults?.cellOptions || DEFAULT_RANGE_CONFIG.rackCellDefaults.cellOptions
                 },
-                locationInputRules: json?.locationInputRules || DEFAULT_RANGE_CONFIG.locationInputRules
+                locationInputRules: json?.locationInputRules || DEFAULT_RANGE_CONFIG.locationInputRules,
+                groupInputRules: json?.groupInputRules || DEFAULT_RANGE_CONFIG.groupInputRules
             };
         } catch (error) {
             console.warn('범위 설정 파일을 읽지 못해 기본 설정으로 동작합니다.', error);
@@ -297,19 +302,20 @@
         );
         fillSelectOptions(cellInput, cellOptions, preferredCell);
 
-        const tempLot = zoneGroup === 'TEMP_LOT';
-        const hZone = zoneGroup === 'H_ZONE';
-        const lockCell = Boolean(locationRule?.lockCell);
+        const groupRule = rangeConfig.groupInputRules?.[zoneGroup] || null;
+        const lockCell = Boolean(groupRule?.lockCell || locationRule?.lockCell);
 
-        rackInput.disabled = tempLot;
-        cellInput.disabled = tempLot || hZone || lockCell;
+        rackInput.disabled = Boolean(groupRule?.disableRack || locationRule?.disableRack);
+        cellInput.disabled = Boolean(groupRule?.disableCell || locationRule?.disableCell || lockCell);
 
-        if (hZone || lockCell) {
-            cellInput.value = '1';
+        const fixedRack = locationRule?.fixedRack ?? groupRule?.fixedRack;
+        const fixedCell = locationRule?.fixedCell ?? groupRule?.fixedCell ?? (lockCell ? cellOptions[0] : null);
+
+        if (fixedRack !== null && fixedRack !== undefined) {
+            rackInput.value = String(fixedRack);
         }
-        if (tempLot) {
-            rackInput.value = '23';
-            cellInput.value = '3';
+        if (fixedCell !== null && fixedCell !== undefined) {
+            cellInput.value = String(fixedCell);
         }
     }
 

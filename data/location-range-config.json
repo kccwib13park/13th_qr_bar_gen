@@ -117,6 +117,12 @@
       "cellOptions": [1],
       "lockCell": true,
       "fixedCell": 1
+    },
+    "H-1": {
+      "rackRange": [1, 21],
+      "cellOptions": [1],
+      "lockCell": true,
+      "fixedCell": 1
     }
   },
   "groupInputRules": {

@@ -67,7 +67,9 @@
     },
     "H-1": {
       "zoneType": {
-        "fixed": "투빠/원빠존"
+        "splitAt": 13,
+        "left": "투빠존",
+        "right": "원빠존"
       },
       "products": {
         "1": "실속 바나나 1kg",

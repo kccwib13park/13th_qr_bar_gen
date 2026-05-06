@@ -6,102 +6,138 @@
     <title>QR 코드 변환기</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 50px; background-color: #0f172a; color: #e5e7eb; }
-        .container { background: #111827; padding: 30px; border-radius: 12px; box-shadow: 0 10px 24px rgba(0,0,0,0.45); text-align: center; width: min(92vw, 960px); border: 1px solid #1f2937; }
-        .section-label { font-size: 14px; color: #9ca3af; margin: 14px 0 6px; text-align: left; font-weight: 600; }
-        .input-row { display: grid; gap: 12px; margin-bottom: 8px; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; background-color: #0f172a; color: #e5e7eb; }
+        .container { background: #111827; padding: 30px; border-radius: 14px; box-shadow: 0 10px 24px rgba(0,0,0,0.45); width: min(96vw, 1080px); border: 1px solid #1f2937; }
+        .page-header h2 { margin: 0; }
+        .page-header p { margin: 8px 0 0; color: #cbd5e1; }
+
+        .qr-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+        .qr-card { background: #0b1220; border: 1px solid #243045; border-radius: 12px; padding: 18px; transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+        .qr-card.product-card { border-color: #2b4f82; }
+        .qr-card.location-card { border-color: #365468; }
+        .qr-card.is-updated { box-shadow: 0 0 0 2px rgba(125, 211, 252, 0.25); border-color: #7dd3fc; }
+        .qr-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .qr-card-title { margin: 0; font-size: 20px; }
+        .qr-card-desc { margin: 0 0 14px; color: #9ca3af; font-size: 14px; }
+
+        .status-badge { background: #1f2937; border: 1px solid #4b5563; color: #e5e7eb; border-radius: 999px; font-size: 12px; font-weight: 700; padding: 4px 10px; white-space: nowrap; }
+        .status-badge.is-updated { border-color: #22c55e; color: #bbf7d0; background: #0f2c20; }
+
+        .field-group { margin-bottom: 14px; }
+        .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+        .field-group label { display: block; margin-bottom: 6px; color: #cbd5e1; font-size: 14px; font-weight: 600; }
+        .section-label { font-size: 14px; color: #9ca3af; margin: 12px 0 6px; text-align: left; font-weight: 600; }
+        .input-row { display: grid; gap: 10px; margin-bottom: 8px; }
         .zone-row { grid-template-columns: 1fr 1fr 1fr; }
         .rack-cell-labels,
         .rack-cell-row { grid-template-columns: 1fr 1fr; }
         .mini-label { text-align: left; font-size: 14px; color: #9ca3af; }
-        input, select { padding: 10px; width: 100%; box-sizing: border-box; border: 1px solid #374151; border-radius: 4px; font-size: 16px; background: #1f2937; color: #f3f4f6; }
+        input, select { padding: 10px; width: 100%; box-sizing: border-box; border: 1px solid #374151; border-radius: 8px; font-size: 16px; background: #1f2937; color: #f3f4f6; }
         input:disabled, select:disabled { background: #374151; color: #9ca3af; border-color: #4b5563; opacity: 1; }
-        #saveBtn { margin-top: 12px; padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        #saveBtn:hover { background-color: #0056b3; }
-        #result-container { margin-top: 25px; }
-        .qr-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .qr-panel { background: #0b1220; border: 1px solid #243045; border-radius: 10px; padding: 14px; }
-        .result-text { font-weight: bold; color: #f9fafb; margin-bottom: 12px; font-size: 16px; min-height: 24px; }
-        .qrcode-wrap { display: inline-block; padding: 10px; background: #ffffff; border-radius: 8px; }
+
+        .qr-area { text-align: center; transition: opacity 0.25s ease; }
+        .qr-area.is-updated { opacity: 0.9; }
+        .qrcode-wrap { display: inline-flex; align-items: center; justify-content: center; padding: 10px; background: #ffffff; border-radius: 8px; }
         .qrcode { display: inline-block; min-height: 180px; min-width: 180px; }
+        .qr-value { margin-top: 10px; font-size: 14px; color: #d1d5db; word-break: break-all; }
+
+        #saveBtn { margin-top: 18px; padding: 11px 20px; background-color: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 700; }
+        #saveBtn:hover { background-color: #1d4ed8; }
+
         #history-container { margin-top: 24px; text-align: left; }
         .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
         #history-container h3 { margin: 0; font-size: 16px; color: #f3f4f6; }
-        #history-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-        #direct-history-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-        #history-list li { margin: 0; }
-        #direct-history-list li { margin: 0; }
+        #history-list, #direct-history-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
         .history-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
-        .history-item-btn { width: 100%; text-align: left; border: 1px solid #374151; border-radius: 8px; background: #1f2937; padding: 9px 10px; font-size: 14px; color: #f3f4f6; cursor: pointer; word-break: break-all; margin-top: 0; }
-        .history-item-btn:hover { background: #27364b; border-color: #4b7cc4; }
+        .history-item-btn { width: 100%; text-align: left; border: 1px solid #374151; border-radius: 8px; background: #1f2937; padding: 9px 10px; font-size: 14px; color: #f3f4f6; cursor: pointer; word-break: break-all; }
+        .history-item-btn:hover, .history-item-btn:focus-visible { background: #27364b; border-color: #4b7cc4; outline: none; }
+        .history-item-btn::after { content: ' ↺ 다시 적용'; color: #9ca3af; font-size: 12px; }
         .emoji-btn { border: 1px solid #4b5563; background: #1f2937; color: #f3f4f6; border-radius: 8px; padding: 6px 8px; cursor: pointer; font-size: 14px; line-height: 1; }
         .emoji-btn:hover { background: #374151; }
+        .delete-btn:hover, .delete-btn:focus-visible { border-color: #f87171; background: #3b1313; }
         .history-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .history-column-title { margin: 0 0 8px; font-size: 14px; color: #d1d5db; }
 
+        @media (max-width: 900px) {
+            .qr-cards { grid-template-columns: 1fr; }
+        }
         @media (max-width: 620px) {
             .zone-row { grid-template-columns: 1fr; }
-            .rack-cell-labels,
-            .rack-cell-row { grid-template-columns: 1fr 1fr; }
-            .qr-columns,
-            .history-columns { grid-template-columns: 1fr; }
+            .rack-cell-labels, .rack-cell-row, .history-columns { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-
 <div class="container">
-    <h2>QR 코드 생성기</h2>
-    <p>제품 코드 QR과 피킹/적치/보충 구역(존) QR을 자동으로 생성합니다.</p>
-    <input id="productInput" type="text" placeholder="M 또는 MK로 시작하는 제품 코드 입력 (입력시 자동으로 변환됩니다)">
-
-    <div class="section-label">존</div>
-    <div class="input-row zone-row">
-        <select id="zoneGroup" aria-label="존 분류"></select>
-        <select id="zoneCode" aria-label="존 코드"></select>
-        <select id="zoneNumber" aria-label="존 번호"></select>
+    <div class="page-header">
+        <h2>QR 코드 생성기</h2>
+        <p>제품 코드 QR과 적치 구역 QR을 각각 생성합니다.</p>
     </div>
 
-    <div class="input-row rack-cell-labels">
-        <div class="mini-label">렉</div>
-        <div class="mini-label">칸</div>
-    </div>
-    <div class="input-row rack-cell-row">
-        <select id="rackInput" aria-label="렉 번호"></select>
-        <select id="cellInput" aria-label="칸 번호"></select>
-    </div>
-
-    <button id="saveBtn" type="button">내역 저장</button>
-
-    <div id="result-container">
-        <div class="qr-columns">
-            <div class="qr-panel">
-                <div class="result-text" id="product-result-text"></div>
-                <div class="qrcode-wrap">
-                    <div class="qrcode" id="product-qrcode"></div>
-                </div>
+    <div class="qr-cards">
+        <section class="qr-card product-card" id="product-card" aria-labelledby="product-card-title">
+            <div class="qr-card-head">
+                <h3 class="qr-card-title" id="product-card-title">📦 제품 코드 QR</h3>
+                <span class="status-badge" id="product-status">실시간 반영됨</span>
             </div>
-            <div class="qr-panel">
-                <div class="result-text" id="zone-result-text"></div>
-                <div class="qrcode-wrap">
-                    <div class="qrcode" id="zone-qrcode"></div>
-                </div>
+            <p class="qr-card-desc">제품 코드를 입력하면 아래 QR에 실시간 반영됩니다.</p>
+            <div class="field-group">
+                <label for="productInput">제품 코드</label>
+                <input id="productInput" type="text" placeholder="예: M000000131716 또는 MK00000131716">
             </div>
-        </div>
+            <div class="qr-area" id="product-qr-area">
+                <div class="qrcode-wrap"><div class="qrcode" id="product-qrcode" role="img" aria-label="제품 코드 QR"></div></div>
+                <div class="qr-value" id="product-result-text">현재 값: -</div>
+            </div>
+        </section>
+
+        <section class="qr-card location-card" id="location-card" aria-labelledby="location-card-title">
+            <div class="qr-card-head">
+                <h3 class="qr-card-title" id="location-card-title">📍 적치 구역 QR</h3>
+                <span class="status-badge" id="location-status">실시간 반영됨</span>
+            </div>
+            <p class="qr-card-desc">존 / 렉 / 칸을 선택하면 아래 QR에 실시간 반영됩니다.</p>
+
+            <div class="section-label">존</div>
+            <div class="input-row zone-row">
+                <label for="zoneGroup" class="sr-only">존 분류</label>
+                <select id="zoneGroup" aria-label="존 분류"></select>
+                <label for="zoneCode" class="sr-only">존 코드</label>
+                <select id="zoneCode" aria-label="존 코드"></select>
+                <label for="zoneNumber" class="sr-only">존 번호</label>
+                <select id="zoneNumber" aria-label="존 번호"></select>
+            </div>
+
+            <div class="input-row rack-cell-labels">
+                <label class="mini-label" for="rackInput">렉</label>
+                <label class="mini-label" for="cellInput">칸</label>
+            </div>
+            <div class="input-row rack-cell-row">
+                <select id="rackInput" aria-label="렉 번호"></select>
+                <select id="cellInput" aria-label="칸 번호"></select>
+            </div>
+
+            <div class="qr-area" id="location-qr-area">
+                <div class="qrcode-wrap"><div class="qrcode" id="zone-qrcode" role="img" aria-label="적치 구역 QR"></div></div>
+                <div class="qr-value" id="zone-result-text">현재 값: -</div>
+            </div>
+        </section>
     </div>
+
+    <button id="saveBtn" type="button">현재 제품 코드 / 적치 구역 저장</button>
 
     <div id="history-container">
         <div class="history-header">
             <h3>최근 저장 내역 (각 최대 20개)</h3>
-            <button type="button" id="clearHistoryBtn" class="emoji-btn" title="전체 삭제">🗑️ 전체</button>
+            <button type="button" id="clearHistoryBtn" class="emoji-btn" title="전체 삭제" aria-label="모든 저장 내역 삭제">🗑️ 전체</button>
         </div>
         <div class="history-columns">
             <div>
-                <h4 class="history-column-title">제품 코드 히스토리</h4>
+                <h4 class="history-column-title">최근 저장한 제품 코드</h4>
                 <ol id="direct-history-list"></ol>
             </div>
             <div>
-                <h4 class="history-column-title">적치 구역 히스토리</h4>
+                <h4 class="history-column-title">최근 저장한 적치 구역</h4>
                 <ol id="history-list"></ol>
             </div>
         </div>
@@ -469,7 +505,7 @@
         const resultTextDiv = document.getElementById(resultTextId);
         const qrcodeDiv = document.getElementById(qrCodeId);
 
-        resultTextDiv.innerText = `${title}: ${text}`;
+        resultTextDiv.innerText = `현재 값: ${text}`;
         qrcodeDiv.innerHTML = '';
         new QRCode(qrcodeDiv, {
             text,
@@ -611,8 +647,9 @@
 
             const deleteBtn = document.createElement('button');
             deleteBtn.type = 'button';
-            deleteBtn.className = 'emoji-btn';
+            deleteBtn.className = 'emoji-btn delete-btn';
             deleteBtn.title = '삭제';
+            deleteBtn.setAttribute('aria-label', '제품 코드 히스토리 삭제');
             deleteBtn.textContent = '❌';
             deleteBtn.addEventListener('click', (event) => {
                 event.stopPropagation();
@@ -644,8 +681,9 @@
 
             const deleteBtn = document.createElement('button');
             deleteBtn.type = 'button';
-            deleteBtn.className = 'emoji-btn';
+            deleteBtn.className = 'emoji-btn delete-btn';
             deleteBtn.title = '삭제';
+            deleteBtn.setAttribute('aria-label', '적치 구역 히스토리 삭제');
             deleteBtn.textContent = '❌';
             deleteBtn.addEventListener('click', (event) => {
                 event.stopPropagation();
@@ -659,12 +697,27 @@
         });
     }
 
+    function triggerLiveUpdate(cardId, badgeId, areaId) {
+        const card = document.getElementById(cardId);
+        const badge = document.getElementById(badgeId);
+        const area = document.getElementById(areaId);
+        [card, badge, area].forEach((el) => {
+            if (!el) return;
+            el.classList.remove('is-updated');
+            void el.offsetWidth;
+            el.classList.add('is-updated');
+            setTimeout(() => el.classList.remove('is-updated'), 300);
+        });
+    }
+
     function previewQR() {
         const productText = document.getElementById('productInput').value.trim() || '품명 공백';
         renderQRCode('product-result-text', 'product-qrcode', '제품 코드', productText);
+        triggerLiveUpdate('product-card', 'product-status', 'product-qr-area');
         const payload = getCurrentPayload();
         if (!payload) return;
         renderQRCode('zone-result-text', 'zone-qrcode', '적치 구역', payload.convertedString);
+        triggerLiveUpdate('location-card', 'location-status', 'location-qr-area');
     }
 
     function convertAndSave() {
@@ -672,7 +725,9 @@
         const payload = getCurrentPayload();
         if (!payload) return;
         renderQRCode('product-result-text', 'product-qrcode', '제품 코드', productText);
+        triggerLiveUpdate('product-card', 'product-status', 'product-qr-area');
         renderQRCode('zone-result-text', 'zone-qrcode', '적치 구역', payload.convertedString);
+        triggerLiveUpdate('location-card', 'location-status', 'location-qr-area');
         addDirectHistoryItem(productText);
         addHistoryItem(payload);
     }
@@ -706,6 +761,5 @@
         hydrateExternalConfigs();
     };
 </script>
-
 </body>
 </html>

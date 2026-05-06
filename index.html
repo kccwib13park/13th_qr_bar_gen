@@ -41,8 +41,8 @@
         .qrcode { display: inline-block; min-height: 180px; min-width: 180px; }
         .qr-value { margin-top: 10px; font-size: 14px; color: #d1d5db; word-break: break-all; }
 
-        .card-save-btn { margin-top: 14px; padding: 10px 16px; background-color: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; width: 100%; }
-        .card-save-btn:hover { background-color: #1d4ed8; }
+        #saveBtn { margin-top: 18px; padding: 11px 20px; background-color: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 700; }
+        #saveBtn:hover { background-color: #1d4ed8; }
 
         #history-container { margin-top: 24px; text-align: left; }
         .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
@@ -89,7 +89,6 @@
                 <div class="qrcode-wrap"><div class="qrcode" id="product-qrcode" role="img" aria-label="제품 코드 QR"></div></div>
                 <div class="qr-value" id="product-result-text">현재 값: -</div>
             </div>
-            <button id="saveProductBtn" class="card-save-btn" type="button">현재 제품 코드 QR 저장</button>
         </section>
 
         <section class="qr-card location-card" id="location-card" aria-labelledby="location-card-title">
@@ -122,7 +121,6 @@
                 <div class="qrcode-wrap"><div class="qrcode" id="zone-qrcode" role="img" aria-label="적치 구역 QR"></div></div>
                 <div class="qr-value" id="zone-result-text">현재 값: -</div>
             </div>
-            <button id="saveLocationBtn" class="card-save-btn" type="button">현재 적치 구역 QR 저장</button>
         </section>
     </div>
 
@@ -722,22 +720,17 @@
         triggerLiveUpdate('location-card', 'location-status', 'location-qr-area');
     }
 
-    function saveProductQRCode() {
+    function convertAndSave() {
         const productText = document.getElementById('productInput').value.trim() || '품명 공백';
-        renderQRCode('product-result-text', 'product-qrcode', '제품 코드', productText);
-        triggerLiveUpdate('product-card', 'product-status', 'product-qr-area');
-        addDirectHistoryItem(productText);
-    }
-
-    function saveLocationQRCode() {
         const payload = getCurrentPayload();
         if (!payload) return;
+        renderQRCode('product-result-text', 'product-qrcode', '제품 코드', productText);
+        triggerLiveUpdate('product-card', 'product-status', 'product-qr-area');
         renderQRCode('zone-result-text', 'zone-qrcode', '적치 구역', payload.convertedString);
         triggerLiveUpdate('location-card', 'location-status', 'location-qr-area');
+        addDirectHistoryItem(productText);
         addHistoryItem(payload);
     }
-
-
 
     window.onload = () => {
         initializeZoneInputs();
@@ -759,8 +752,7 @@
         });
         document.getElementById('rackInput').addEventListener('change', previewQR);
         document.getElementById('cellInput').addEventListener('change', previewQR);
-        document.getElementById('saveProductBtn').addEventListener('click', saveProductQRCode);
-        document.getElementById('saveLocationBtn').addEventListener('click', saveLocationQRCode);
+        document.getElementById('saveBtn').addEventListener('click', convertAndSave);
         document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
 
         renderHistory();

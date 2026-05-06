@@ -76,7 +76,7 @@
   "rackCellDefaults": {
     "rackRange": [
       0,
-      50
+      60
     ],
     "cellOptions": [
       1,

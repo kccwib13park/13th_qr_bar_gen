@@ -20,6 +20,10 @@
       1,
       6
     ],
+    "AL": [
+      1,
+      2
+    ],
     "AR": [
       1,
       2
@@ -106,23 +110,21 @@
     ]
   },
   "locationInputRules": {
-    "AC-2": {
-      "rackRange": [1, 30],
-      "cellOptions": [1],
-      "lockCell": true,
-      "fixedCell": 1
+    "AL-1": {
+      "rackOptions": [
+        1,
+        2,
+        3,
+        5
+      ]
     },
-    "AD-2": {
-      "rackRange": [1, 10],
-      "cellOptions": [1],
-      "lockCell": true,
-      "fixedCell": 1
-    },
-    "H-1": {
-      "rackRange": [1, 21],
-      "cellOptions": [1],
-      "lockCell": true,
-      "fixedCell": 1
+    "AL-2": {
+      "rackOptions": [
+        1,
+        2,
+        3,
+        5
+      ]
     }
   },
   "groupInputRules": {

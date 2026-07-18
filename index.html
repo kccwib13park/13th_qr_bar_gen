@@ -4,12 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR 코드 변환기</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+        integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"
+        defer
+        onerror="window.qrLibraryLoadFailed = true"
+    ></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; background-color: #0f172a; color: #e5e7eb; }
-        .container { background: #111827; padding: 30px; border-radius: 14px; box-shadow: 0 10px 24px rgba(0,0,0,0.45); width: min(96vw, 1080px); border: 1px solid #1f2937; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { max-width: 100%; }
+        body { margin: 0; min-width: 0; width: 100%; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; background-color: #0f172a; color: #e5e7eb; }
+        body.access-locked { min-height: 100vh; justify-content: center; }
+        #app-shell { width: 100%; }
+        #app-shell[hidden], .access-gate[hidden] { display: none; }
+        .access-gate { width: min(100%, 430px); }
+        .access-card { padding: 30px; border: 1px solid #334155; border-radius: 16px; background: #111827; box-shadow: 0 18px 48px rgba(0,0,0,0.45); }
+        .access-eyebrow { margin: 0 0 8px; color: #93c5fd; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+        .access-card h1 { margin: 0; font-size: 27px; }
+        .access-description { margin: 10px 0 24px; color: #cbd5e1; font-size: 14px; line-height: 1.55; }
+        .access-label { display: block; margin-bottom: 7px; color: #e2e8f0; font-size: 14px; font-weight: 700; }
+        .access-password-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+        .access-password-row input[aria-invalid="true"] { border-color: #f87171; box-shadow: 0 0 0 1px #f87171; }
+        .access-toggle, .access-submit, .access-lock-btn { min-height: 44px; border: 1px solid #475569; border-radius: 8px; color: #f8fafc; font-weight: 800; cursor: pointer; }
+        .access-toggle { min-width: 64px; padding: 0 13px; background: #1e293b; }
+        .access-toggle:hover, .access-toggle:focus-visible, .access-lock-btn:hover, .access-lock-btn:focus-visible { border-color: #60a5fa; background: #263449; outline: none; }
+        .access-submit { width: 100%; margin-top: 8px; padding: 11px 16px; border-color: #2563eb; background: #2563eb; font-size: 15px; }
+        .access-submit:hover, .access-submit:focus-visible { background: #1d4ed8; outline: 2px solid #93c5fd; outline-offset: 2px; }
+        .access-toggle:disabled, .access-submit:disabled { color: #94a3b8; border-color: #374151; background: #1f2937; cursor: wait; }
+        .access-help { margin: 7px 0 0; color: #94a3b8; font-size: 12px; line-height: 1.45; }
+        .access-error { margin: 12px 0 0; color: #fecaca; font-size: 13px; font-weight: 700; }
+        .access-error[hidden] { display: none; }
+        .access-status { min-height: 20px; margin: 10px 0 0; color: #bfdbfe; font-size: 13px; text-align: center; }
+        .access-noscript { margin: 14px 0 0; padding: 10px 12px; border: 1px solid #f59e0b; border-radius: 8px; background: #3b2608; color: #fde68a; font-size: 13px; line-height: 1.45; }
+        .container { background: #111827; padding: 30px; border-radius: 14px; box-shadow: 0 10px 24px rgba(0,0,0,0.45); width: min(100%, 1080px); max-width: 100%; border: 1px solid #1f2937; }
+        .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
         .page-header h2 { margin: 0; }
         .page-header p { margin: 8px 0 0; color: #cbd5e1; }
+        .access-lock-btn { flex: none; min-height: 38px; padding: 7px 12px; background: #1e293b; font-size: 13px; }
+        .app-alert { margin-top: 16px; padding: 11px 13px; border: 1px solid #f59e0b; border-radius: 8px; background: #3b2608; color: #fde68a; font-size: 13px; line-height: 1.45; }
+        .app-alert[hidden] { display: none; }
 
         .qr-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
         .qr-card { background: #0b1220; border: 1px solid #243045; border-radius: 12px; padding: 18px; transition: border-color 0.3s ease, box-shadow 0.3s ease; }
@@ -40,14 +75,79 @@
         .qrcode-wrap { display: inline-flex; align-items: center; justify-content: center; padding: 10px; background: #ffffff; border-radius: 8px; }
         .qrcode { display: inline-block; min-height: 180px; min-width: 180px; }
         .qr-value { margin-top: 10px; font-size: 14px; color: #d1d5db; word-break: break-all; }
+        .qr-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+        .qr-action-btn { min-height: 38px; border: 1px solid #3b4c68; border-radius: 8px; background: #172033; color: #e2e8f0; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .qr-action-btn:hover, .qr-action-btn:focus-visible { border-color: #60a5fa; background: #1e3a5f; outline: none; }
+        .qr-action-btn:disabled { color: #64748b; background: #111827; cursor: not-allowed; }
 
         .save-btn { display: block; margin: 14px auto 0; padding: 10px 16px; background-color: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; }
         .save-btn:hover { background-color: #1d4ed8; }
+        .save-btn:disabled { background: #374151; color: #9ca3af; cursor: not-allowed; }
+
+        #bulk-inventory-container { margin-top: 24px; padding: 18px; border: 1px solid #334155; border-radius: 12px; background: #0b1220; text-align: left; }
+        .inventory-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+        #bulk-inventory-container h3 { margin: 0; font-size: 18px; color: #f3f4f6; }
+        .inventory-desc { margin: 0 0 16px; color: #9ca3af; font-size: 14px; }
+        .inventory-badges { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+        .inventory-count { flex: none; border: 1px solid #3b82f6; border-radius: 999px; padding: 4px 10px; color: #bfdbfe; background: #172554; font-size: 12px; font-weight: 700; }
+        .inventory-data-status { border: 1px solid #64748b; border-radius: 999px; padding: 4px 10px; color: #cbd5e1; background: #1e293b; font-size: 12px; font-weight: 800; }
+        .inventory-data-status[data-state="current"] { border-color: #22c55e; color: #bbf7d0; background: #052e16; }
+        .inventory-data-status[data-state="stale"], .inventory-data-status[data-state="cached"] { border-color: #f59e0b; color: #fde68a; background: #3b2608; }
+        .inventory-data-status[data-state="unavailable"] { border-color: #ef4444; color: #fecaca; background: #450a0a; }
+        .inventory-data-detail { margin: -8px 0 14px; color: #94a3b8; font-size: 12px; }
+        .inventory-search-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(240px, 0.7fr); gap: 16px; align-items: start; }
+        .inventory-search-status { min-height: 20px; margin: 7px 0 8px; color: #cbd5e1; font-size: 13px; }
+        #bulk-inventory-list { max-height: 520px; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; list-style: none; display: grid; gap: 7px; scrollbar-color: #475569 #111827; }
+        .inventory-item-btn { width: 100%; display: grid; gap: 4px; padding: 10px 12px; border: 1px solid #334155; border-radius: 9px; background: #111827; color: #f3f4f6; text-align: left; cursor: pointer; }
+        .inventory-item-btn:hover, .inventory-item-btn:focus-visible, .inventory-item-btn.is-selected { border-color: #60a5fa; background: #172554; outline: none; }
+        .inventory-item-name { font-size: 14px; font-weight: 700; line-height: 1.35; }
+        .inventory-item-meta { color: #94a3b8; font-size: 12px; word-break: break-all; }
+        .inventory-zone-label { color: #93c5fd; font-weight: 700; }
+        .inventory-empty { padding: 22px 12px; border: 1px dashed #475569; border-radius: 9px; color: #94a3b8; text-align: center; }
+        .inventory-preview { position: sticky; top: 12px; padding: 14px; border: 1px solid #334155; border-radius: 10px; background: #111827; text-align: center; }
+        .inventory-preview h4 { margin: 0 0 10px; font-size: 15px; color: #e5e7eb; }
+        .inventory-selected-name { min-height: 38px; margin: 10px 0 4px; color: #f8fafc; font-size: 14px; font-weight: 700; line-height: 1.35; }
+        .inventory-selected-meta { min-height: 34px; margin: 0; color: #94a3b8; font-size: 12px; line-height: 1.4; word-break: break-all; }
+        .inventory-qr-placeholder { min-height: 180px; display: flex; align-items: center; justify-content: center; padding: 10px; border-radius: 8px; background: #1f2937; color: #94a3b8; font-size: 13px; }
+        .inventory-qr-placeholder[hidden], #inventory-qrcode-wrap[hidden] { display: none; }
+
+        body.scan-mode-open { overflow: hidden; }
+        .continuous-scan-dialog { position: fixed; inset: 0; z-index: 1000; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: #07101f; color: #f8fafc; }
+        .continuous-scan-dialog[hidden] { display: none; }
+        .continuous-scan-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: max(16px, env(safe-area-inset-top)) 18px 14px; border-bottom: 1px solid #25334a; }
+        .continuous-scan-header h2 { margin: 0; font-size: 19px; }
+        .continuous-scan-stage { min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 18px; overflow-y: auto; text-align: center; touch-action: pan-y; }
+        .continuous-scan-step { margin: 0; color: #93c5fd; font-size: 13px; font-weight: 800; }
+        .continuous-scan-title { margin: 0; font-size: clamp(22px, 6vw, 32px); }
+        .continuous-scan-name { min-height: 24px; margin: 0; color: #dbeafe; font-size: 15px; font-weight: 700; }
+        .continuous-scan-qr { display: inline-flex; padding: 12px; border-radius: 12px; background: #ffffff; }
+        .continuous-scan-qr[hidden], .continuous-scan-bookmark[hidden] { display: none; }
+        .continuous-scan-value { max-width: 100%; margin: 0; color: #cbd5e1; font-size: 15px; word-break: break-all; }
+        .continuous-scan-bookmark { width: min(100%, 520px); min-height: min(52vh, 420px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px 24px; border: 3px solid #60a5fa; border-left-width: 14px; border-radius: 18px; background: linear-gradient(145deg, #172554, #0f1e3a); box-shadow: 0 18px 50px rgba(37, 99, 235, 0.25); }
+        .continuous-scan-bookmark-label { margin: 0; color: #93c5fd; font-size: 14px; font-weight: 900; letter-spacing: 0.12em; }
+        .continuous-scan-bookmark-message { margin: 0; color: #ffffff; font-size: clamp(24px, 7vw, 38px); font-weight: 900; line-height: 1.35; word-break: keep-all; overflow-wrap: break-word; text-wrap: balance; }
+        .continuous-scan-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 18px max(14px, env(safe-area-inset-bottom)); border-top: 1px solid #25334a; background: #0b1220; }
+        .scan-control-btn { min-height: 48px; border: 1px solid #3b4c68; border-radius: 10px; background: #172033; color: #f8fafc; font-size: 16px; font-weight: 800; cursor: pointer; }
+        .scan-control-btn.primary { border-color: #2563eb; background: #2563eb; }
+        .scan-control-btn:disabled { color: #64748b; background: #111827; cursor: not-allowed; }
+        .scan-start-btn { background: #0f766e; }
+        .scan-start-btn:hover { background: #115e59; }
+
+        body.qr-modal-open { overflow: hidden; }
+        .qr-action-dialog { position: fixed; inset: 0; z-index: 1100; display: grid; grid-template-rows: auto minmax(0, 1fr); background: rgba(3, 8, 20, 0.98); color: #f8fafc; }
+        .qr-action-dialog[hidden] { display: none; }
+        .qr-action-dialog-body { min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; overflow-y: auto; text-align: center; }
+        .qr-action-dialog-body h3 { margin: 0; font-size: clamp(22px, 6vw, 32px); }
+        .qr-action-dialog-code { display: inline-flex; padding: 12px; border-radius: 12px; background: #ffffff; }
+        .qr-action-dialog-value { max-width: 100%; margin: 0; color: #cbd5e1; font-size: 16px; word-break: break-all; }
+        .app-toast { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); z-index: 1200; width: max-content; max-width: calc(100vw - 32px); transform: translateX(-50%); padding: 11px 16px; border: 1px solid #60a5fa; border-radius: 999px; background: #172554; color: #dbeafe; box-shadow: 0 8px 24px rgba(0,0,0,0.4); font-size: 13px; font-weight: 700; text-align: center; }
+        .app-toast[hidden] { display: none; }
 
         #history-container { margin-top: 24px; text-align: left; }
         .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
         #history-container h3 { margin: 0; font-size: 16px; color: #f3f4f6; }
-        #history-list, #direct-history-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+        .history-desc { margin: 0 0 14px; color: #9ca3af; font-size: 13px; line-height: 1.55; }
+        #history-list, #direct-history-list, #work-unit-history-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
         .history-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
         .history-item-btn { width: 100%; text-align: left; border: 1px solid #374151; border-radius: 8px; background: #1f2937; padding: 9px 10px; font-size: 14px; color: #f3f4f6; cursor: pointer; word-break: break-all; }
         .history-item-btn:hover, .history-item-btn:focus-visible { background: #27364b; border-color: #4b7cc4; outline: none; }
@@ -57,47 +157,100 @@
         .delete-btn:hover, .delete-btn:focus-visible { border-color: #f87171; background: #3b1313; }
         .history-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .history-column-title { margin: 0 0 8px; font-size: 14px; color: #d1d5db; }
+        .work-unit-history { margin-bottom: 14px; }
 
         @media (max-width: 900px) {
             .qr-cards { grid-template-columns: 1fr; }
+            .inventory-search-layout { grid-template-columns: 1fr; }
+            .inventory-preview { position: static; }
+            #bulk-inventory-list { max-height: 360px; }
         }
         @media (max-width: 620px) {
+            body { padding: 24px 10px; }
+            .access-card { padding: 24px 18px; }
+            .container { padding: 16px; }
+            .page-header { align-items: center; }
             .zone-row { grid-template-columns: 1fr; }
             .rack-cell-labels, .rack-cell-row, .history-columns { grid-template-columns: 1fr; }
+            #bulk-inventory-list { max-height: 280px; }
+            .qr-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
         }
     </style>
 </head>
-<body>
+<body class="access-locked">
+<main id="access-gate" class="access-gate" aria-labelledby="access-title">
+    <section class="access-card">
+        <p class="access-eyebrow">Kurly QR Tools</p>
+        <h1 id="access-title">QR 코드 생성기</h1>
+        <p class="access-description">계속하려면 접근 비밀번호를 입력해 주세요.</p>
+        <form id="access-form" novalidate>
+            <label class="access-label" for="access-password">접근 비밀번호</label>
+            <div class="access-password-row">
+                <input id="access-password" name="access-password" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-describedby="access-help access-error">
+                <button id="access-password-toggle" class="access-toggle" type="button" aria-controls="access-password" aria-pressed="false">표시</button>
+            </div>
+            <p id="access-help" class="access-help">비밀번호는 대소문자를 구분합니다.</p>
+            <p id="access-error" class="access-error" role="alert" hidden></p>
+            <button id="access-submit" class="access-submit" type="submit">입장하기</button>
+            <p id="access-status" class="access-status" role="status" aria-live="polite"></p>
+        </form>
+        <noscript>
+            <style>#access-form { display: none; }</style>
+            <p class="access-noscript">이 페이지를 사용하려면 브라우저에서 JavaScript를 활성화해 주세요.</p>
+        </noscript>
+    </section>
+</main>
+
+<div id="app-shell" role="main" aria-label="QR 코드 생성기" hidden inert>
 <div class="container">
     <div class="page-header">
-        <h2>QR 코드 생성기</h2>
-        <p>제품 코드 QR과 적치 구역 QR을 각각 생성합니다.</p>
+        <div>
+            <h2 tabindex="-1">QR 코드 생성기</h2>
+            <p>제품 코드 QR과 적치 구역 QR을 각각 생성합니다.</p>
+        </div>
+        <button id="lockAccessBtn" class="access-lock-btn" type="button">잠금</button>
     </div>
+    <div id="config-warning" class="app-alert" role="alert" hidden></div>
+
+    <section id="bulk-inventory-container" aria-labelledby="bulk-inventory-title">
+        <div class="inventory-header">
+            <h3 id="bulk-inventory-title">🗂️ 대량 지번 재고 목록</h3>
+            <div class="inventory-badges">
+                <span id="inventory-count" class="inventory-count">불러오는 중</span>
+                <span id="inventory-data-status" class="inventory-data-status" data-state="loading">데이터 확인 중</span>
+            </div>
+        </div>
+        <p class="inventory-desc">제품명·제품 코드·위치·존을 검색하거나 목록을 선택하면 제품과 적치 QR이 함께 표시됩니다.</p>
+        <p id="inventory-data-detail" class="inventory-data-detail" role="status" aria-live="polite">재고 데이터 기준일을 확인하고 있습니다.</p>
+        <div class="inventory-search-layout">
+            <div>
+                <label for="inventory-search">제품·코드·위치·존 검색</label>
+                <input id="inventory-search" type="search" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" placeholder="예: 전용목장우유, MK0000030559, 1F-H1-13-1">
+                <p id="inventory-search-status" class="inventory-search-status" role="status" aria-live="polite"></p>
+                <ol id="bulk-inventory-list"></ol>
+            </div>
+            <aside class="inventory-preview" aria-labelledby="inventory-preview-title">
+                <h4 id="inventory-preview-title">선택한 제품 QR</h4>
+                <div id="inventory-qr-placeholder" class="inventory-qr-placeholder">제품을 검색하거나 목록에서 선택하세요.</div>
+                <div id="inventory-qrcode-wrap" class="qrcode-wrap" hidden><div class="qrcode" id="inventory-qrcode" role="img" aria-label="대량 재고 제품 코드 QR"></div></div>
+                <p id="inventory-selected-name" class="inventory-selected-name">선택된 제품 없음</p>
+                <p id="inventory-selected-meta" class="inventory-selected-meta"></p>
+                <button id="saveWorkUnitBtn" class="save-btn" type="button" disabled>제품·위치 함께 저장</button>
+                <button id="startScanModeBtn" class="save-btn scan-start-btn" type="button" disabled>현재 목록 연속 스캔</button>
+            </aside>
+        </div>
+    </section>
 
     <div class="qr-cards">
-        <section class="qr-card product-card" id="product-card" aria-labelledby="product-card-title">
-            <div class="qr-card-head">
-                <h3 class="qr-card-title" id="product-card-title">📦 제품 코드 QR</h3>
-                <span class="status-badge" id="product-status">실시간 반영됨</span>
-            </div>
-            <p class="qr-card-desc">제품 코드를 입력하면 아래 QR에 실시간 반영됩니다.</p>
-            <div class="field-group">
-                <label for="productInput">제품 코드</label>
-                <input id="productInput" name="product-code" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="예: M000000131716 또는 MK00000131716">
-            </div>
-            <div class="qr-area" id="product-qr-area">
-                <div class="qrcode-wrap"><div class="qrcode" id="product-qrcode" role="img" aria-label="제품 코드 QR"></div></div>
-                <div class="qr-value" id="product-result-text">현재 값: -</div>
-            </div>
-            <button id="saveProductBtn" class="save-btn" type="button">제품 코드 저장</button>
-        </section>
-
         <section class="qr-card location-card" id="location-card" aria-labelledby="location-card-title">
             <div class="qr-card-head">
                 <h3 class="qr-card-title" id="location-card-title">📍 적치 구역 QR</h3>
                 <span class="status-badge" id="location-status">실시간 반영됨</span>
             </div>
-            <p class="qr-card-desc">존 / 렉 / 칸을 선택하면 아래 QR에 실시간 반영됩니다.</p>
+            <p class="qr-card-desc">존 / 렉 / 칸을 선택하면 아래 QR에 실시간 반영됩니다.<br />선택하지 않으면 기본적으로 임시 지번이 출력됩니다.</p>
 
             <div class="section-label">존</div>
             <div class="input-row zone-row">
@@ -121,16 +274,49 @@
             <div class="qr-area" id="location-qr-area">
                 <div class="qrcode-wrap"><div class="qrcode" id="zone-qrcode" role="img" aria-label="적치 구역 QR"></div></div>
                 <div class="qr-value" id="zone-result-text">현재 값: -</div>
+                <div class="qr-actions" aria-label="적치 QR 작업">
+                    <button class="qr-action-btn" type="button" data-qr-source="location" data-qr-action="expand" aria-label="적치 QR 확대" disabled>확대</button>
+                    <button class="qr-action-btn" type="button" data-qr-source="location" data-qr-action="copy" aria-label="적치 QR 값 복사" disabled>복사</button>
+                    <button class="qr-action-btn" type="button" data-qr-source="location" data-qr-action="download" aria-label="적치 QR 이미지 다운로드" disabled>다운로드</button>
+                    <button class="qr-action-btn" type="button" data-qr-source="location" data-qr-action="share" aria-label="적치 QR 공유" disabled>공유</button>
+                </div>
             </div>
             <button id="saveLocationBtn" class="save-btn" type="button">적치 구역 저장</button>
         </section>
-    </div>
 
+        <section class="qr-card product-card" id="product-card" aria-labelledby="product-card-title">
+            <div class="qr-card-head">
+                <h3 class="qr-card-title" id="product-card-title">📦 제품 코드 QR</h3>
+                <span class="status-badge" id="product-status">실시간 반영됨</span>
+            </div>
+            <p class="qr-card-desc">제품 코드를 입력하면 아래 QR에 실시간 반영됩니다.</p>
+            <div class="field-group">
+                <label for="productInput">제품 코드</label>
+                <input id="productInput" name="product-code" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="64" placeholder="예: M000000131716 또는 MK00000131716">
+            </div>
+            <div class="qr-area" id="product-qr-area">
+                <div class="qrcode-wrap"><div class="qrcode" id="product-qrcode" role="img" aria-label="제품 코드 QR"></div></div>
+                <div class="qr-value" id="product-result-text">현재 값: -</div>
+                <div class="qr-actions" aria-label="제품 QR 작업">
+                    <button class="qr-action-btn" type="button" data-qr-source="product" data-qr-action="expand" aria-label="제품 QR 확대" disabled>확대</button>
+                    <button class="qr-action-btn" type="button" data-qr-source="product" data-qr-action="copy" aria-label="제품 QR 값 복사" disabled>복사</button>
+                    <button class="qr-action-btn" type="button" data-qr-source="product" data-qr-action="download" aria-label="제품 QR 이미지 다운로드" disabled>다운로드</button>
+                    <button class="qr-action-btn" type="button" data-qr-source="product" data-qr-action="share" aria-label="제품 QR 공유" disabled>공유</button>
+                </div>
+            </div>
+            <button id="saveProductBtn" class="save-btn" type="button">제품 코드 저장</button>
+        </section>
+    </div>
 
     <div id="history-container">
         <div class="history-header">
             <h3>최근 저장 내역 (각 최대 20개)</h3>
             <button type="button" id="clearHistoryBtn" class="emoji-btn" title="전체 삭제" aria-label="모든 저장 내역 삭제">🗑️ 전체</button>
+        </div>
+        <p class="history-desc">저장 버튼을 누른 제품·위치 정보는 현재 브라우저의 로컬 스토리지에만 보관됩니다.<br />같은 기기와 브라우저에서 다시 사용할 수 있지만, 다른 이용자도 볼 수 없으며, 다른 기기와는 동기화되지 않으며, 브라우저 데이터 또는 전체 내역을 삭제하면 복구할 수 없습니다.</p>
+        <div class="work-unit-history">
+            <h4 class="history-column-title">최근 저장한 제품·위치 작업</h4>
+            <ol id="work-unit-history-list"></ol>
         </div>
         <div class="history-columns">
             <div>
@@ -145,10 +331,372 @@
     </div>
 </div>
 
+<section id="continuous-scan-dialog" class="continuous-scan-dialog" role="dialog" aria-modal="true" aria-labelledby="continuous-scan-heading" hidden>
+    <header class="continuous-scan-header">
+        <h2 id="continuous-scan-heading">연속 스캔</h2>
+        <button id="closeScanModeBtn" class="emoji-btn" type="button" aria-label="연속 스캔 닫기">✕</button>
+    </header>
+    <div id="continuous-scan-stage" class="continuous-scan-stage">
+        <p id="continuous-scan-step" class="continuous-scan-step" aria-live="polite"></p>
+        <h3 id="continuous-scan-title" class="continuous-scan-title">제품 QR</h3>
+        <p id="continuous-scan-name" class="continuous-scan-name"></p>
+        <div id="continuous-scan-qr-wrap" class="continuous-scan-qr"><div id="continuous-scan-qrcode" role="img" aria-label="연속 스캔 제품 QR"></div></div>
+        <div id="continuous-scan-bookmark" class="continuous-scan-bookmark" role="note" hidden>
+            <p class="continuous-scan-bookmark-label">존 책갈피</p>
+            <p id="continuous-scan-bookmark-message" class="continuous-scan-bookmark-message"></p>
+        </div>
+        <p id="continuous-scan-value" class="continuous-scan-value"></p>
+    </div>
+    <footer class="continuous-scan-controls">
+        <button id="previousScanStepBtn" class="scan-control-btn" type="button">이전</button>
+        <button id="nextScanStepBtn" class="scan-control-btn primary" type="button">다음</button>
+    </footer>
+</section>
+
+<section id="qr-action-dialog" class="qr-action-dialog" role="dialog" aria-modal="true" aria-labelledby="qr-action-dialog-title" hidden>
+    <header class="continuous-scan-header">
+        <h2 id="qr-action-dialog-title">QR 확대</h2>
+        <button id="closeQrActionDialogBtn" class="emoji-btn" type="button" aria-label="QR 확대 닫기">✕</button>
+    </header>
+    <div class="qr-action-dialog-body">
+        <h3 id="qr-action-dialog-label"></h3>
+        <div class="qr-action-dialog-code"><div id="qr-action-dialog-qrcode" role="img" aria-label="확대 QR"></div></div>
+        <p id="qr-action-dialog-value" class="qr-action-dialog-value"></p>
+    </div>
+</section>
+<div id="app-toast" class="app-toast" role="status" aria-live="polite" hidden></div>
+</div>
+
 <script>
+    const ACCESS_CONFIG = Object.freeze({
+        saltBase64: 'rTIi+uQWdl8HZsYmGnz23Q==',
+        verifierBase64: 'd2Ax0OeRvqaRiWxAItmxRyXyBKubNsXOUAp8ejAqj9Y=',
+        iterations: 600000,
+        derivedBits: 256,
+        verifierVersion: 1,
+        sessionDurationMs: 8 * 60 * 60 * 1000,
+        maxAttempts: 5,
+        lockDurationMs: 30 * 1000
+    });
+    const ACCESS_SESSION_KEY = 'qr_generator_access_session_v1';
+    const ACCESS_FAILURE_KEY = 'qr_generator_access_failure_v1';
+    const accessMemoryStorage = new Map();
+    let accessLockTimer = null;
+    let accessExpiryTimer = null;
+    let accessVerificationInProgress = false;
+    let appInitializationPromise = null;
+
+    function readAccessStorage(key) {
+        try {
+            return window.sessionStorage.getItem(key) ?? accessMemoryStorage.get(key) ?? null;
+        } catch (error) {
+            return accessMemoryStorage.get(key) ?? null;
+        }
+    }
+
+    function writeAccessStorage(key, value) {
+        try {
+            window.sessionStorage.setItem(key, value);
+            accessMemoryStorage.delete(key);
+        } catch (error) {
+            accessMemoryStorage.set(key, value);
+        }
+    }
+
+    function removeAccessStorage(key) {
+        try {
+            window.sessionStorage.removeItem(key);
+        } catch (error) {
+            // 저장소가 차단된 브라우저에서는 메모리 상태만 정리한다.
+        }
+        accessMemoryStorage.delete(key);
+    }
+
+    function readAccessJson(key) {
+        try {
+            const raw = readAccessStorage(key);
+            return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+            removeAccessStorage(key);
+            return null;
+        }
+    }
+
+    function getValidAccessSession(now = Date.now()) {
+        const session = readAccessJson(ACCESS_SESSION_KEY);
+        const isValid = session
+            && session.version === ACCESS_CONFIG.verifierVersion
+            && Number.isFinite(session.verifiedAt)
+            && Number.isFinite(session.expiresAt)
+            && session.verifiedAt <= now
+            && session.expiresAt > now;
+        if (!isValid) {
+            removeAccessStorage(ACCESS_SESSION_KEY);
+            return null;
+        }
+        return session;
+    }
+
+    function createAccessSession(now = Date.now()) {
+        const session = {
+            version: ACCESS_CONFIG.verifierVersion,
+            verifiedAt: now,
+            expiresAt: now + ACCESS_CONFIG.sessionDurationMs
+        };
+        writeAccessStorage(ACCESS_SESSION_KEY, JSON.stringify(session));
+        return session;
+    }
+
+    function getAccessFailureState() {
+        const state = readAccessJson(ACCESS_FAILURE_KEY);
+        if (!state || !Number.isInteger(state.attempts) || !Number.isFinite(state.lockedUntil)) {
+            return { attempts: 0, lockedUntil: 0 };
+        }
+        return state;
+    }
+
+    function saveAccessFailureState(state) {
+        writeAccessStorage(ACCESS_FAILURE_KEY, JSON.stringify(state));
+    }
+
+    function clearAccessFailures() {
+        removeAccessStorage(ACCESS_FAILURE_KEY);
+    }
+
+    function base64ToBytes(value) {
+        const binary = window.atob(value);
+        return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    }
+
+    function accessBytesMatch(left, right) {
+        if (left.length !== right.length) return false;
+        let difference = 0;
+        for (let index = 0; index < left.length; index += 1) {
+            difference |= left[index] ^ right[index];
+        }
+        return difference === 0;
+    }
+
+    async function verifyAccessPassword(password) {
+        const passwordKey = await window.crypto.subtle.importKey(
+            'raw',
+            new TextEncoder().encode(password),
+            'PBKDF2',
+            false,
+            ['deriveBits']
+        );
+        const derived = await window.crypto.subtle.deriveBits({
+            name: 'PBKDF2',
+            hash: 'SHA-256',
+            salt: base64ToBytes(ACCESS_CONFIG.saltBase64),
+            iterations: ACCESS_CONFIG.iterations
+        }, passwordKey, ACCESS_CONFIG.derivedBits);
+        return accessBytesMatch(new Uint8Array(derived), base64ToBytes(ACCESS_CONFIG.verifierBase64));
+    }
+
+    function getAccessElements() {
+        return {
+            gate: document.getElementById('access-gate'),
+            form: document.getElementById('access-form'),
+            password: document.getElementById('access-password'),
+            toggle: document.getElementById('access-password-toggle'),
+            submit: document.getElementById('access-submit'),
+            error: document.getElementById('access-error'),
+            status: document.getElementById('access-status'),
+            shell: document.getElementById('app-shell')
+        };
+    }
+
+    function showAccessError(message) {
+        const elements = getAccessElements();
+        elements.error.textContent = message;
+        elements.error.hidden = false;
+        elements.password.setAttribute('aria-invalid', 'true');
+    }
+
+    function clearAccessError() {
+        const elements = getAccessElements();
+        elements.error.textContent = '';
+        elements.error.hidden = true;
+        elements.password.removeAttribute('aria-invalid');
+    }
+
+    function setAccessControlsDisabled(disabled) {
+        const elements = getAccessElements();
+        elements.password.disabled = disabled;
+        elements.toggle.disabled = disabled;
+        elements.submit.disabled = disabled;
+        elements.form.setAttribute('aria-busy', String(disabled));
+    }
+
+    function setAccessBusy(busy) {
+        setAccessControlsDisabled(busy);
+        const elements = getAccessElements();
+        elements.submit.textContent = busy ? '확인 중…' : '입장하기';
+        elements.status.textContent = busy ? '비밀번호를 확인하고 있습니다.' : '';
+    }
+
+    function stopAccessLockCountdown() {
+        if (accessLockTimer !== null) {
+            window.clearInterval(accessLockTimer);
+            accessLockTimer = null;
+        }
+    }
+
+    function updateAccessLockCountdown() {
+        const elements = getAccessElements();
+        const failureState = getAccessFailureState();
+        const remainingMs = failureState.lockedUntil - Date.now();
+        if (remainingMs <= 0) {
+            stopAccessLockCountdown();
+            clearAccessFailures();
+            setAccessControlsDisabled(false);
+            elements.submit.textContent = '입장하기';
+            elements.status.textContent = '';
+            elements.password.focus();
+            return;
+        }
+        setAccessControlsDisabled(true);
+        elements.submit.textContent = '잠시 기다려 주세요';
+        elements.status.textContent = `${Math.ceil(remainingMs / 1000)}초 후 다시 시도할 수 있습니다.`;
+    }
+
+    function startAccessLockCountdown() {
+        stopAccessLockCountdown();
+        updateAccessLockCountdown();
+        if (getAccessFailureState().lockedUntil > Date.now()) {
+            accessLockTimer = window.setInterval(updateAccessLockCountdown, 1000);
+        }
+    }
+
+    function recordAccessFailure(now = Date.now()) {
+        const current = getAccessFailureState();
+        const attempts = current.lockedUntil > now ? current.attempts : current.attempts + 1;
+        const shouldLock = attempts >= ACCESS_CONFIG.maxAttempts;
+        const next = {
+            attempts: shouldLock ? 0 : attempts,
+            lockedUntil: shouldLock ? now + ACCESS_CONFIG.lockDurationMs : 0
+        };
+        saveAccessFailureState(next);
+        return next;
+    }
+
+    function scheduleAccessExpiry(expiresAt) {
+        if (accessExpiryTimer !== null) window.clearTimeout(accessExpiryTimer);
+        const remainingMs = Math.max(0, expiresAt - Date.now());
+        accessExpiryTimer = window.setTimeout(lockApplication, remainingMs);
+    }
+
+    async function unlockApplication(session) {
+        const elements = getAccessElements();
+        stopAccessLockCountdown();
+        elements.gate.hidden = true;
+        elements.gate.setAttribute('aria-hidden', 'true');
+        elements.shell.hidden = false;
+        elements.shell.removeAttribute('inert');
+        document.body.classList.remove('access-locked');
+        scheduleAccessExpiry(session.expiresAt);
+
+        if (!appInitializationPromise) appInitializationPromise = initializeApp();
+        try {
+            await appInitializationPromise;
+        } catch (error) {
+            console.error('애플리케이션 초기화에 실패했습니다.', error);
+            const warning = document.getElementById('config-warning');
+            warning.textContent = '페이지를 초기화하지 못했습니다. 새로고침 후 다시 시도해 주세요.';
+            warning.hidden = false;
+        }
+        window.requestAnimationFrame(() => document.querySelector('.page-header h2')?.focus());
+    }
+
+    function lockApplication() {
+        removeAccessStorage(ACCESS_SESSION_KEY);
+        clearAccessFailures();
+        stopAccessLockCountdown();
+        window.location.reload();
+    }
+
+    function toggleAccessPasswordVisibility() {
+        const elements = getAccessElements();
+        const willShow = elements.password.type === 'password';
+        elements.password.type = willShow ? 'text' : 'password';
+        elements.toggle.textContent = willShow ? '숨김' : '표시';
+        elements.toggle.setAttribute('aria-pressed', String(willShow));
+        elements.password.focus();
+    }
+
+    async function handleAccessSubmit(event) {
+        event.preventDefault();
+        if (accessVerificationInProgress) return;
+
+        const elements = getAccessElements();
+        const failureState = getAccessFailureState();
+        if (failureState.lockedUntil > Date.now()) {
+            startAccessLockCountdown();
+            return;
+        }
+        if (!elements.password.value) {
+            showAccessError('비밀번호를 입력해 주세요.');
+            elements.password.focus();
+            return;
+        }
+
+        accessVerificationInProgress = true;
+        clearAccessError();
+        setAccessBusy(true);
+        try {
+            const isValid = await verifyAccessPassword(elements.password.value);
+            elements.password.value = '';
+            if (isValid) {
+                clearAccessFailures();
+                await unlockApplication(createAccessSession());
+                return;
+            }
+
+            const nextFailure = recordAccessFailure();
+            showAccessError('비밀번호가 올바르지 않습니다. 다시 확인해 주세요.');
+            if (nextFailure.lockedUntil > Date.now()) {
+                startAccessLockCountdown();
+            } else {
+                setAccessBusy(false);
+                elements.password.focus();
+            }
+        } catch (error) {
+            console.error('접근 비밀번호를 확인하지 못했습니다.', error);
+            showAccessError('비밀번호 확인 기능을 사용할 수 없습니다. 최신 브라우저에서 다시 시도해 주세요.');
+            setAccessBusy(false);
+        } finally {
+            accessVerificationInProgress = false;
+        }
+    }
+
+    async function initializeAccessGate() {
+        const elements = getAccessElements();
+        elements.form.addEventListener('submit', handleAccessSubmit);
+        elements.toggle.addEventListener('click', toggleAccessPasswordVisibility);
+        elements.password.addEventListener('input', clearAccessError);
+        document.getElementById('lockAccessBtn').addEventListener('click', lockApplication);
+
+        const session = getValidAccessSession();
+        if (session) {
+            await unlockApplication(session);
+            return;
+        }
+        if (!window.crypto?.subtle) {
+            showAccessError('이 브라우저에서는 비밀번호 확인 기능을 사용할 수 없습니다. 최신 브라우저를 사용해 주세요.');
+            setAccessControlsDisabled(true);
+            return;
+        }
+        if (getAccessFailureState().lockedUntil > Date.now()) {
+            startAccessLockCountdown();
+            return;
+        }
+        window.requestAnimationFrame(() => elements.password.focus());
+    }
+
     const zoneGroups = {
         TEMP_LOT: { label: '임시지번', codes: ['TEMP_LOT'] },
-        A_ZONE: { label: 'A존', codes: ['AB', 'AC', 'AD', 'AR', 'AT', 'AZ', 'A'] },
+        A_ZONE: { label: 'A존', codes: ['AB', 'AC', 'AD', 'AL', 'AR', 'AT', 'AZ', 'A'] },
         B_ZONE: { label: 'B존', codes: ['BA', 'BB', 'BC', 'BD'] },
         CD_ZONE: { label: 'C/D존', codes: ['C', 'D'] },
         MEZZANINE: { label: '메자닌', codes: ['E', 'F', 'G'] },
@@ -167,20 +715,20 @@
     const DEFAULT_RANGE_CONFIG = Object.freeze({
         zoneRules: {
             TEMP_LOT: [1, 1],
-            A: [1, 1], AB: [1, 5], AC: [1, 5], AD: [1, 6], AR: [1, 2], AT: [1, 1], AZ: [1, 1],
+            A: [1, 1], AB: [1, 5], AC: [1, 5], AD: [1, 6], AL: [1, 2], AR: [1, 2], AT: [1, 1], AZ: [1, 1],
             BA: [1, 2], BB: [1, 2], BC: [1, 2], BD: [1, 2],
             C: [1, 9], D: [1, 11],
             E: [0, 1], F: [1, 20], G: [1, 20],
             H: [1, 1]
         },
         rackCellDefaults: {
-            rackRange: [0, 50],
-            cellOptions: [1, 2, 3, 4, 101, 102, 103, 104, 201, 202, 203, 204, 301, 302, 303, 304, 401, 402, 403, 404]
+            rackRange: [0, 60],
+            cellOptions: [1, 2, 3, 4, 101, 102, 103, 104, 105, 201, 202, 203, 204, 205, 301, 302, 303, 304, 305, 401, 402, 403, 404, 405]
         },
+        // 제품 카탈로그는 표시용이며 일반 지번 선택 범위를 제한하지 않는다.
         locationInputRules: {
-            // zoneRuleKey = `${zoneCode}-${zoneNumber}` 형태. 존별 확장 가능.
-            'AC-2': { rackRange: [1, 30], cellOptions: [1], lockCell: true, fixedCell: 1 },
-            'AD-2': { rackRange: [1, 10], cellOptions: [1], lockCell: true, fixedCell: 1 }
+            'AL-1': { rackOptions: [1, 2, 3, 5] },
+            'AL-2': { rackOptions: [1, 2, 3, 5] }
         },
         groupInputRules: {
             TEMP_LOT: { disableRack: true, disableCell: true, fixedRack: 23, fixedCell: 3 },
@@ -189,11 +737,15 @@
     });
     let rangeConfig = DEFAULT_RANGE_CONFIG;
     const DISPLAY_CONFIG_URL = './data/location-display-config.json';
+    const DISPLAY_CONFIG_CACHE_KEY = 'qr_generator_display_config_cache_v1';
+    const DATA_STALE_AFTER_DAYS = 1;
     const DEFAULT_DISPLAY_CONFIG = Object.freeze({
+        lastUpdated: null,
         numberOptionLabels: {},
         rackProductCatalog: {}
     });
     let displayConfig = DEFAULT_DISPLAY_CONFIG;
+    let inventoryDataSource = 'loading';
 
     const ENCODING_RULES = {
         prefix: '1F',
@@ -203,14 +755,29 @@
 
     const HISTORY_KEY = 'qr_generator_history_v2';
     const DIRECT_HISTORY_KEY = 'qr_generator_product_history_v2';
+    const WORK_UNIT_HISTORY_KEY = 'qr_generator_work_unit_history_v1';
     const HISTORY_LIMIT = 20;
+    const INVENTORY_ZONE_PRIORITY = ['H1', 'BD', 'BC', 'AD', 'AC', 'OTHER'];
     const WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+    let selectedInventoryLocation = '';
+    let selectedInventoryProductCode = '';
+    let selectedInventoryItem = null;
+    let inventoryItems = [];
+    let inventoryItemByLocation = new Map();
+    let inventorySearchTimer = null;
+    let continuousScanStep = 0;
+    let continuousScanSteps = [];
+    let continuousScanPointerStartX = null;
+    let continuousScanPreviousFocus = null;
+    let qrActionDialogPreviousFocus = null;
+    let appToastTimer = null;
+    const liveUpdateTimers = new WeakMap();
 
     function pad2(n) { return String(n).padStart(2, '0'); }
 
     async function loadRangeConfig() {
         try {
-            const response = await fetch(RANGE_CONFIG_URL, { cache: 'no-store' });
+            const response = await fetch(RANGE_CONFIG_URL, { cache: 'no-cache' });
             if (!response.ok) throw new Error(`범위 설정 파일 로드 실패: ${response.status}`);
             const json = await response.json();
             rangeConfig = {
@@ -222,37 +789,119 @@
                 locationInputRules: json?.locationInputRules || DEFAULT_RANGE_CONFIG.locationInputRules,
                 groupInputRules: json?.groupInputRules || DEFAULT_RANGE_CONFIG.groupInputRules
             };
+            return null;
         } catch (error) {
             console.warn('범위 설정 파일을 읽지 못해 기본 설정으로 동작합니다.', error);
             rangeConfig = DEFAULT_RANGE_CONFIG;
+            return '적치 범위 설정을 불러오지 못해 기본 범위로 동작합니다.';
+        }
+    }
+
+    function normalizeDisplayConfig(json) {
+        return {
+            lastUpdated: typeof json?.lastUpdated === 'string' ? json.lastUpdated : null,
+            numberOptionLabels: json?.numberOptionLabels || {},
+            rackProductCatalog: json?.rackProductCatalog || {}
+        };
+    }
+
+    function loadCachedDisplayConfig() {
+        try {
+            const raw = localStorage.getItem(DISPLAY_CONFIG_CACHE_KEY);
+            if (!raw) return null;
+            const cached = normalizeDisplayConfig(JSON.parse(raw));
+            return Object.keys(cached.rackProductCatalog).length ? cached : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function saveCachedDisplayConfig(config) {
+        try {
+            localStorage.setItem(DISPLAY_CONFIG_CACHE_KEY, JSON.stringify(config));
+            return true;
+        } catch (error) {
+            console.warn('마지막 정상 재고 데이터를 저장하지 못했습니다.', error);
+            return false;
         }
     }
 
     async function loadDisplayConfig() {
         try {
-            const response = await fetch(DISPLAY_CONFIG_URL, { cache: 'no-store' });
+            const response = await fetch(DISPLAY_CONFIG_URL, { cache: 'no-cache' });
             if (!response.ok) throw new Error(`설정 파일 로드 실패: ${response.status}`);
             const json = await response.json();
-            displayConfig = {
-                numberOptionLabels: json?.numberOptionLabels || {},
-                rackProductCatalog: json?.rackProductCatalog || {}
-            };
+            displayConfig = normalizeDisplayConfig(json);
+            if (!Object.keys(displayConfig.rackProductCatalog).length) throw new Error('재고 카탈로그가 비어 있습니다.');
+            inventoryDataSource = 'online';
+            saveCachedDisplayConfig(displayConfig);
+            rebuildInventoryIndex();
+            return null;
         } catch (error) {
-            console.warn('표시 설정 파일을 읽지 못해 기본 설정으로 동작합니다.', error);
-            displayConfig = DEFAULT_DISPLAY_CONFIG;
+            console.warn('표시 설정 파일을 읽지 못했습니다.', error);
+            const cached = loadCachedDisplayConfig();
+            displayConfig = cached || DEFAULT_DISPLAY_CONFIG;
+            inventoryDataSource = cached ? 'cached' : 'unavailable';
+            rebuildInventoryIndex();
+            return cached
+                ? '온라인 재고 데이터를 불러오지 못해 마지막 정상 데이터를 표시합니다.'
+                : '대량 지번 재고 데이터를 불러오지 못했습니다. 새로고침 후 다시 확인해 주세요.';
         }
     }
 
+    function getInventoryDataAgeDays(lastUpdated, now = new Date()) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(lastUpdated))) return null;
+        const updatedDate = new Date(`${lastUpdated}T00:00:00`);
+        if (Number.isNaN(updatedDate.getTime())) return null;
+        const today = new Date(now);
+        today.setHours(0, 0, 0, 0);
+        return Math.max(0, Math.floor((today.getTime() - updatedDate.getTime()) / 86400000));
+    }
+
+    function renderInventoryDataStatus() {
+        const badge = document.getElementById('inventory-data-status');
+        const detail = document.getElementById('inventory-data-detail');
+        const lastUpdated = displayConfig.lastUpdated;
+        const ageDays = getInventoryDataAgeDays(lastUpdated);
+
+        if (inventoryDataSource === 'cached') {
+            badge.dataset.state = 'cached';
+            badge.textContent = '오프라인 데이터';
+            detail.textContent = `기준일 ${lastUpdated || '알 수 없음'} · 마지막 정상 데이터${ageDays === null ? '' : ` · ${ageDays}일 경과`}`;
+            return;
+        }
+        if (inventoryDataSource === 'unavailable') {
+            badge.dataset.state = 'unavailable';
+            badge.textContent = '데이터 없음';
+            detail.textContent = '사용 가능한 재고 데이터가 없습니다. 네트워크 연결 후 새로고침해 주세요.';
+            return;
+        }
+        if (ageDays === null || ageDays > DATA_STALE_AFTER_DAYS) {
+            badge.dataset.state = 'stale';
+            badge.textContent = '업데이트 필요';
+            detail.textContent = `기준일 ${lastUpdated || '알 수 없음'}${ageDays === null ? ' · 기준일 확인 필요' : ` · ${ageDays}일 경과`}`;
+            return;
+        }
+
+        badge.dataset.state = 'current';
+        badge.textContent = '최신 데이터';
+        detail.textContent = `기준일 ${lastUpdated} · 온라인 데이터`;
+    }
+
+    function showConfigWarnings(messages) {
+        const warning = document.getElementById('config-warning');
+        const visibleMessages = messages.filter(Boolean);
+        warning.hidden = visibleMessages.length === 0;
+        warning.textContent = visibleMessages.join(' ');
+    }
+
     async function hydrateExternalConfigs() {
-        await Promise.all([loadRangeConfig(), loadDisplayConfig()]);
-
-        const zoneNumberValue = Number(document.getElementById('zoneNumber').value);
-        const rackValue = Number(document.getElementById('rackInput').value);
-        const cellValue = Number(document.getElementById('cellInput').value);
-
-        updateZoneNumberOptions(zoneNumberValue);
-        updateRackCellOptions(rackValue, cellValue);
-        previewQR();
+        const warnings = await Promise.all([loadRangeConfig(), loadDisplayConfig()]);
+        if (window.qrLibraryLoadFailed || typeof window.QRCode !== 'function') {
+            warnings.push('QR 생성 라이브러리를 불러오지 못했습니다. 네트워크 연결 후 새로고침해 주세요.');
+        }
+        showConfigWarnings(warnings);
+        renderInventoryDataStatus();
     }
 
     function getNumberOptionLabel(zoneCode, value) {
@@ -282,22 +931,254 @@
         return list;
     }
 
-    function getRackOptionLabel(zoneCode, zoneNumber, rackValue) {
-        const zoneRuleKey = `${zoneCode}-${zoneNumber}`;
-        const catalog = displayConfig.rackProductCatalog[zoneRuleKey];
-        if (!catalog) return String(rackValue);
-
-        const productName = catalog.products?.[String(rackValue)];
-        if (!productName) return String(rackValue);
-
+    function getCatalogZoneType(catalog, rackValue) {
         let zoneType = catalog.zoneType?.fixed || '';
         const splitAt = Number(catalog.zoneType?.splitAt);
         if (!zoneType && Number.isFinite(splitAt)) {
             zoneType = rackValue <= splitAt ? catalog.zoneType.left : catalog.zoneType.right;
         }
+        return zoneType;
+    }
+
+    function getRackOptionLabel(zoneCode, zoneNumber, rackValue) {
+        const zoneRuleKey = `${zoneCode}-${zoneNumber}`;
+        const catalog = displayConfig.rackProductCatalog[zoneRuleKey];
+        if (!catalog) return String(rackValue);
+
+        const product = catalog.products?.[String(rackValue)];
+        const productName = typeof product === 'string' ? product : product?.productName;
+        if (!productName) return String(rackValue);
+
+        const zoneType = getCatalogZoneType(catalog, rackValue);
 
         if (zoneType) return `${rackValue} (${zoneType} | ${productName})`;
         return `${rackValue} (${productName})`;
+    }
+
+    function getInventoryZoneGroup(zoneKey) {
+        const normalizedZoneKey = String(zoneKey).toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (normalizedZoneKey === 'H1') return { key: 'H1', label: 'H1', hasBookmark: false };
+        for (const zonePrefix of ['BD', 'BC', 'AD', 'AC']) {
+            if (normalizedZoneKey.startsWith(zonePrefix)) {
+                return { key: zonePrefix, label: zonePrefix, hasBookmark: true };
+            }
+        }
+        return { key: 'OTHER', label: '나머지 존', hasBookmark: true };
+    }
+
+    function compareInventoryZoneKeys(zoneKeyA, zoneKeyB) {
+        const groupA = getInventoryZoneGroup(zoneKeyA);
+        const groupB = getInventoryZoneGroup(zoneKeyB);
+        const priorityDifference = INVENTORY_ZONE_PRIORITY.indexOf(groupA.key) - INVENTORY_ZONE_PRIORITY.indexOf(groupB.key);
+        if (priorityDifference !== 0) return priorityDifference;
+        return zoneKeyA.localeCompare(zoneKeyB, 'en', { numeric: true });
+    }
+
+    function rebuildInventoryIndex() {
+        const orderedZoneKeys = Object.keys(displayConfig.rackProductCatalog).sort(compareInventoryZoneKeys);
+        inventoryItems = orderedZoneKeys.flatMap((zoneKey) => {
+            const catalog = displayConfig.rackProductCatalog[zoneKey];
+            if (!catalog) return [];
+
+            return Object.entries(catalog.products || {})
+                .sort(([rackA], [rackB]) => Number(rackA) - Number(rackB))
+                .map(([rack, product]) => {
+                    if (!product || typeof product === 'string' || !product.productCode) return null;
+                    const rackNumber = Number(rack);
+                    const zoneType = getCatalogZoneType(catalog, rackNumber);
+                    const zoneCodeLabel = zoneKey.split('-')[0];
+                    const scanZoneGroup = getInventoryZoneGroup(zoneKey);
+                    const locationParts = parseInventoryLocation(product.location);
+                    const locationCode = locationParts ? buildConvertedString(locationParts)?.convertedString || '' : '';
+                    const exactSearchKeys = [product.productName, product.productCode, product.location, locationCode]
+                        .map(normalizeInventorySearch)
+                        .filter(Boolean);
+                    return {
+                        ...product,
+                        zoneKey,
+                        rack: rackNumber,
+                        zoneType,
+                        locationCode,
+                        normalizedSearchText: normalizeInventorySearch([
+                            product.productName,
+                            product.productCode,
+                            product.location,
+                            locationCode,
+                            zoneKey,
+                            zoneCodeLabel,
+                            zoneType,
+                            scanZoneGroup.label,
+                            `${zoneKey} ${zoneType}`,
+                            `${zoneCodeLabel} ${zoneType}`
+                        ].join(' ')),
+                        exactSearchKeys: [...new Set(exactSearchKeys)]
+                    };
+                })
+                .filter(Boolean);
+        });
+        inventoryItemByLocation = new Map(inventoryItems.map((item) => [item.location, item]));
+    }
+
+    function getInventoryItems() {
+        return inventoryItems;
+    }
+
+    function normalizeInventorySearch(value) {
+        return String(value).toLocaleLowerCase('ko-KR').replace(/\s+/g, '');
+    }
+
+    function parseInventoryLocation(location) {
+        const match = String(location).match(/^1F-([A-Z]+)(\d+)-(\d+)-(\d+)$/);
+        if (!match) return null;
+        return {
+            zoneCode: match[1],
+            zoneNumber: Number(match[2]),
+            rack: Number(match[3]),
+            cell: Number(match[4])
+        };
+    }
+
+    function applyInventoryItem(item) {
+        const location = parseInventoryLocation(item.location);
+        if (!location) return;
+        selectedInventoryLocation = item.location;
+        selectedInventoryProductCode = item.productCode;
+        selectedInventoryItem = { ...item, ...location };
+        document.getElementById('productInput').value = item.productCode;
+        renderProductPreview();
+        applyHistoryToInputs(location);
+        renderLocationPreview();
+
+        const placeholder = document.getElementById('inventory-qr-placeholder');
+        const qrWrap = document.getElementById('inventory-qrcode-wrap');
+        placeholder.hidden = true;
+        qrWrap.hidden = false;
+        const inventoryQr = document.getElementById('inventory-qrcode');
+        createQRCode(inventoryQr, item.productCode);
+        document.getElementById('inventory-selected-name').textContent = item.productName;
+        document.getElementById('inventory-selected-meta').textContent = `${item.zoneType} · ${item.location} · ${item.productCode}`;
+        document.getElementById('saveWorkUnitBtn').disabled = false;
+
+        document.querySelectorAll('.inventory-item-btn').forEach((button) => {
+            const isSelected = button.dataset.location === item.location;
+            button.classList.toggle('is-selected', isSelected);
+            button.setAttribute('aria-pressed', String(isSelected));
+        });
+    }
+
+    function clearInventorySelection({ clearLinkedProduct = false } = {}) {
+        const linkedProductCode = selectedInventoryProductCode;
+        selectedInventoryLocation = '';
+        selectedInventoryProductCode = '';
+        selectedInventoryItem = null;
+
+        document.getElementById('inventory-qr-placeholder').hidden = false;
+        document.getElementById('inventory-qrcode-wrap').hidden = true;
+        document.getElementById('inventory-qrcode').innerHTML = '';
+        document.getElementById('inventory-selected-name').textContent = '선택된 제품 없음';
+        document.getElementById('inventory-selected-meta').textContent = '';
+        document.getElementById('saveWorkUnitBtn').disabled = true;
+        document.querySelectorAll('.inventory-item-btn').forEach((button) => {
+            button.classList.remove('is-selected');
+            button.setAttribute('aria-pressed', 'false');
+        });
+
+        const productInput = document.getElementById('productInput');
+        if (clearLinkedProduct && productInput.value.trim() === linkedProductCode) {
+            productInput.value = '';
+            renderProductPreview();
+        }
+    }
+
+    function getFilteredInventoryItems(rawQuery = '') {
+        const query = normalizeInventorySearch(rawQuery);
+        return query
+            ? getInventoryItems().filter((item) => item.normalizedSearchText.includes(query))
+            : getInventoryItems();
+    }
+
+    function renderInventoryList(rawQuery = '') {
+        const inventoryList = document.getElementById('bulk-inventory-list');
+        const status = document.getElementById('inventory-search-status');
+        const count = document.getElementById('inventory-count');
+        const query = normalizeInventorySearch(rawQuery);
+        const allItems = getInventoryItems();
+        const filteredItems = getFilteredInventoryItems(rawQuery);
+        document.getElementById('startScanModeBtn').disabled = filteredItems.length === 0;
+
+        if (selectedInventoryLocation && !filteredItems.some((item) => item.location === selectedInventoryLocation)) {
+            clearInventorySelection({ clearLinkedProduct: true });
+        }
+
+        count.textContent = query ? `${filteredItems.length} / ${allItems.length}개` : `총 ${allItems.length}개`;
+        status.textContent = query
+            ? filteredItems.length ? `통합 검색 결과 ${filteredItems.length}개` : '일치하는 재고 항목이 없습니다.'
+            : 'H1 → BD → BC → AD → AC → 나머지 존 순서로 표시됩니다.';
+        inventoryList.innerHTML = '';
+
+        if (!filteredItems.length) {
+            const emptyItem = document.createElement('li');
+            emptyItem.className = 'inventory-empty';
+            emptyItem.textContent = '검색 결과가 없습니다.';
+            inventoryList.appendChild(emptyItem);
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        filteredItems.forEach((item) => {
+            const listItem = document.createElement('li');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'inventory-item-btn';
+            button.dataset.location = item.location;
+            button.setAttribute('aria-label', `${item.productName} 제품 코드 QR 보기`);
+            const isSelected = selectedInventoryLocation === item.location;
+            button.classList.toggle('is-selected', isSelected);
+            button.setAttribute('aria-pressed', String(isSelected));
+
+            const name = document.createElement('span');
+            name.className = 'inventory-item-name';
+            name.textContent = item.productName;
+
+            const meta = document.createElement('span');
+            meta.className = 'inventory-item-meta';
+            const zone = document.createElement('span');
+            zone.className = 'inventory-zone-label';
+            zone.textContent = item.zoneType;
+            meta.append(zone, ` · ${item.location} · ${item.productCode}`);
+
+            button.append(name, meta);
+            listItem.appendChild(button);
+            fragment.appendChild(listItem);
+        });
+        inventoryList.appendChild(fragment);
+    }
+
+    function handleInventoryListClick(event) {
+        const button = event.target.closest('.inventory-item-btn');
+        if (!button || !event.currentTarget.contains(button)) return;
+        const item = inventoryItemByLocation.get(button.dataset.location);
+        if (item) applyInventoryItem(item);
+    }
+
+    function handleInventorySearchInput(event) {
+        const query = event.currentTarget.value;
+        clearTimeout(inventorySearchTimer);
+        inventorySearchTimer = setTimeout(() => renderInventoryList(query), 120);
+    }
+
+    function handleInventorySearchKeydown(event) {
+        if (event.key !== 'Enter') return;
+        const query = normalizeInventorySearch(event.currentTarget.value);
+        if (!query) return;
+        const exactMatches = inventoryItems.filter((item) => item.exactSearchKeys.includes(query));
+        if (exactMatches.length !== 1) return;
+
+        event.preventDefault();
+        clearTimeout(inventorySearchTimer);
+        renderInventoryList(event.currentTarget.value);
+        applyInventoryItem(exactMatches[0]);
+        document.getElementById('inventory-search-status').textContent = '정확히 일치하는 재고 항목을 선택했습니다.';
     }
 
     function findGroupKeyByZoneCode(zoneCode) {
@@ -346,10 +1227,11 @@
         const locationRule = getLocationRule(zoneCode, zoneNumber);
 
         const rackRange = locationRule?.rackRange || rangeConfig.rackCellDefaults.rackRange;
+        const rackOptions = locationRule?.rackOptions || createRange(rackRange[0], rackRange[1]);
         const cellOptions = locationRule?.cellOptions || rangeConfig.rackCellDefaults.cellOptions;
         fillSelectOptions(
             rackInput,
-            createRange(rackRange[0], rackRange[1]),
+            rackOptions,
             preferredRack,
             (value) => getRackOptionLabel(zoneCode, zoneNumber, value)
         );
@@ -433,10 +1315,6 @@
         updateRackCellOptions(defaults.rack, defaults.cell);
     }
 
-    function applyInputStateOnly() {
-        updateRackCellOptions();
-    }
-
     function resolveZoneValue(zoneCode, zoneNumber) {
         if (zoneCode === 'TEMP_LOT') {
             return { resolvedCode: 'B', resolvedNumber: 1 };
@@ -474,8 +1352,6 @@
     }
 
     function getCurrentPayload() {
-        applyInputStateOnly();
-
         const zoneCode = document.getElementById('zoneCode').value;
         const zoneNumber = document.getElementById('zoneNumber').value;
         const rackValue = document.getElementById('rackInput').value;
@@ -502,20 +1378,183 @@
         };
     }
 
+    function isQRCodeAvailable() {
+        return !window.qrLibraryLoadFailed && typeof window.QRCode === 'function';
+    }
+
+    function showQRCodeLoadWarning() {
+        const warning = document.getElementById('config-warning');
+        const message = 'QR 생성 라이브러리를 불러오지 못했습니다. 네트워크 연결 후 새로고침해 주세요.';
+        if (!warning.textContent.includes(message)) {
+            warning.textContent = [warning.textContent, message].filter(Boolean).join(' ');
+        }
+        warning.hidden = false;
+    }
+
+    function createQRCode(qrcodeDiv, text, size = 180) {
+        qrcodeDiv.innerHTML = '';
+        if (!isQRCodeAvailable()) {
+            showQRCodeLoadWarning();
+            return false;
+        }
+
+        new window.QRCode(qrcodeDiv, {
+            text,
+            width: size,
+            height: size,
+            colorDark : '#000000',
+            colorLight : '#ffffff',
+            correctLevel : window.QRCode.CorrectLevel.H
+        });
+        return true;
+    }
+
     function renderQRCode(resultTextId, qrCodeId, title, text) {
         const resultTextDiv = document.getElementById(resultTextId);
         const qrcodeDiv = document.getElementById(qrCodeId);
 
         resultTextDiv.innerText = `현재 값: ${text}`;
-        qrcodeDiv.innerHTML = '';
-        new QRCode(qrcodeDiv, {
-            text,
-            width: 180,
-            height: 180,
-            colorDark : '#000000',
-            colorLight : '#ffffff',
-            correctLevel : QRCode.CorrectLevel.H
+        return createQRCode(qrcodeDiv, text);
+    }
+
+    function setQRActionButtonsEnabled(source, enabled) {
+        document.querySelectorAll(`[data-qr-source="${source}"]`).forEach((button) => {
+            button.disabled = !enabled;
         });
+    }
+
+    function getQRActionSource(source) {
+        if (source === 'product') {
+            const value = document.getElementById('productInput').value.trim();
+            return value ? { source, label: '제품 QR', value, qrCodeId: 'product-qrcode' } : null;
+        }
+        if (source === 'location') {
+            const payload = getCurrentPayload();
+            return payload ? { source, label: '적치 QR', value: payload.convertedString, qrCodeId: 'zone-qrcode' } : null;
+        }
+        return null;
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('app-toast');
+        clearTimeout(appToastTimer);
+        toast.textContent = message;
+        toast.hidden = false;
+        appToastTimer = setTimeout(() => {
+            toast.hidden = true;
+            appToastTimer = null;
+        }, 2400);
+    }
+
+    async function copyTextToClipboard(text) {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        textarea.remove();
+        if (!copied) throw new Error('클립보드 복사 실패');
+    }
+
+    function getQRCodeDataUrl(qrCodeId) {
+        const qrcode = document.getElementById(qrCodeId);
+        const canvas = qrcode.querySelector('canvas');
+        if (canvas) return canvas.toDataURL('image/png');
+        return qrcode.querySelector('img')?.src || '';
+    }
+
+    function getQRFilename(data) {
+        const safeValue = data.value.replace(/[^0-9A-Za-z_-]+/g, '-').slice(0, 80);
+        return `${data.source}-qr-${safeValue || 'code'}.png`;
+    }
+
+    function openQRActionDialog(data, trigger) {
+        qrActionDialogPreviousFocus = trigger;
+        document.body.classList.add('qr-modal-open');
+        document.getElementById('qr-action-dialog').hidden = false;
+        document.getElementById('qr-action-dialog-title').textContent = `${data.label} 확대`;
+        document.getElementById('qr-action-dialog-label').textContent = data.label;
+        document.getElementById('qr-action-dialog-value').textContent = data.value;
+        const qrcode = document.getElementById('qr-action-dialog-qrcode');
+        qrcode.setAttribute('aria-label', `${data.label} ${data.value}`);
+        createQRCode(qrcode, data.value, Math.min(320, Math.max(220, window.innerWidth - 56)));
+        document.getElementById('closeQrActionDialogBtn').focus();
+    }
+
+    function closeQRActionDialog() {
+        document.getElementById('qr-action-dialog').hidden = true;
+        document.body.classList.remove('qr-modal-open');
+        document.getElementById('qr-action-dialog-qrcode').innerHTML = '';
+        if (qrActionDialogPreviousFocus instanceof HTMLElement) qrActionDialogPreviousFocus.focus();
+        qrActionDialogPreviousFocus = null;
+    }
+
+    function handleQRActionDialogKeydown(event) {
+        if (event.key !== 'Escape' || document.getElementById('qr-action-dialog').hidden) return;
+        closeQRActionDialog();
+    }
+
+    async function copyQRCodeValue(data) {
+        await copyTextToClipboard(data.value);
+        showToast(`${data.label} 값을 복사했습니다.`);
+    }
+
+    function downloadQRCodeImage(data) {
+        const dataUrl = getQRCodeDataUrl(data.qrCodeId);
+        if (!dataUrl) throw new Error('다운로드할 QR 이미지가 없습니다.');
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = getQRFilename(data);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        showToast(`${data.label} 이미지를 다운로드했습니다.`);
+    }
+
+    async function shareQRCode(data) {
+        if (!navigator.share) {
+            await copyTextToClipboard(data.value);
+            showToast('공유를 지원하지 않아 QR 값을 복사했습니다.');
+            return;
+        }
+
+        const shareData = { title: `${data.label}`, text: data.value };
+        const dataUrl = getQRCodeDataUrl(data.qrCodeId);
+        if (dataUrl && typeof File === 'function' && navigator.canShare) {
+            const blob = await fetch(dataUrl).then((response) => response.blob());
+            const file = new File([blob], getQRFilename(data), { type: 'image/png' });
+            if (navigator.canShare({ files: [file] })) shareData.files = [file];
+        }
+
+        try {
+            await navigator.share(shareData);
+            showToast(`${data.label}을 공유했습니다.`);
+        } catch (error) {
+            if (error?.name !== 'AbortError') throw error;
+        }
+    }
+
+    async function handleQRAction(event) {
+        const button = event.currentTarget;
+        const data = getQRActionSource(button.dataset.qrSource);
+        if (!data) return;
+        try {
+            if (button.dataset.qrAction === 'expand') openQRActionDialog(data, button);
+            if (button.dataset.qrAction === 'copy') await copyQRCodeValue(data);
+            if (button.dataset.qrAction === 'download') downloadQRCodeImage(data);
+            if (button.dataset.qrAction === 'share') await shareQRCode(data);
+        } catch (error) {
+            console.warn('QR 작업을 완료하지 못했습니다.', error);
+            showToast('QR 작업을 완료하지 못했습니다. 다시 시도해 주세요.');
+        }
     }
 
     function formatHistoryDisplay(item) {
@@ -538,7 +1577,13 @@
     }
 
     function saveHistory(items) {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
+        try {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
+            return true;
+        } catch (error) {
+            console.warn('적치 구역 저장 내역을 기록하지 못했습니다.', error);
+            return false;
+        }
     }
 
     function loadDirectHistory() {
@@ -552,7 +1597,33 @@
     }
 
     function saveDirectHistory(items) {
-        localStorage.setItem(DIRECT_HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
+        try {
+            localStorage.setItem(DIRECT_HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
+            return true;
+        } catch (error) {
+            console.warn('제품 코드 저장 내역을 기록하지 못했습니다.', error);
+            return false;
+        }
+    }
+
+    function loadWorkUnitHistory() {
+        try {
+            const raw = localStorage.getItem(WORK_UNIT_HISTORY_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function saveWorkUnitHistory(items) {
+        try {
+            localStorage.setItem(WORK_UNIT_HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
+            return true;
+        } catch (error) {
+            console.warn('제품·위치 작업 내역을 기록하지 못했습니다.', error);
+            return false;
+        }
     }
 
     function addDirectHistoryItem(convertedString) {
@@ -562,8 +1633,10 @@
             ...history
         ].slice(0, HISTORY_LIMIT);
 
-        saveDirectHistory(nextHistory);
-        renderDirectHistory();
+        if (saveDirectHistory(nextHistory)) {
+            renderDirectHistory();
+            showToast('제품 코드를 저장했습니다.');
+        }
     }
 
     function addHistoryItem(payload) {
@@ -578,8 +1651,148 @@
             ...history.filter((item) => item.key !== key)
         ].slice(0, HISTORY_LIMIT);
 
-        saveHistory(nextHistory);
-        renderHistory();
+        if (saveHistory(nextHistory)) {
+            renderHistory();
+            showToast('적치 구역을 저장했습니다.');
+        }
+    }
+
+    function saveSelectedWorkUnit() {
+        if (!selectedInventoryItem) return;
+        const productCode = document.getElementById('productInput').value.trim();
+        const payload = getCurrentPayload();
+        const expected = buildConvertedString(selectedInventoryItem);
+        if (!payload || !expected || productCode !== selectedInventoryItem.productCode || payload.convertedString !== expected.convertedString) {
+            alert('선택한 제품 또는 위치가 변경되었습니다. 재고 목록에서 제품을 다시 선택해 주세요.');
+            return;
+        }
+
+        const key = `${selectedInventoryItem.productCode}|${selectedInventoryItem.location}`;
+        const history = loadWorkUnitHistory();
+        const nextHistory = [
+            {
+                ...selectedInventoryItem,
+                ...payload,
+                key,
+                timestamp: Date.now()
+            },
+            ...history.filter((item) => item.key !== key)
+        ].slice(0, HISTORY_LIMIT);
+        if (saveWorkUnitHistory(nextHistory)) {
+            renderWorkUnitHistory();
+            showToast('제품·위치 작업을 저장했습니다.');
+        }
+    }
+
+    function buildContinuousScanSteps(items) {
+        const steps = [];
+        let previousZoneGroup = null;
+
+        items.forEach((item) => {
+            const zoneGroup = getInventoryZoneGroup(item.zoneKey);
+            if (zoneGroup.key !== previousZoneGroup && zoneGroup.hasBookmark) {
+                steps.push({ type: 'bookmark', zoneKey: zoneGroup.key, zoneLabel: zoneGroup.label });
+            }
+            steps.push({ type: 'product', item });
+            previousZoneGroup = zoneGroup.key;
+        });
+
+        return steps;
+    }
+
+    function renderContinuousScanStep() {
+        const scanStep = continuousScanSteps[continuousScanStep];
+        if (!scanStep) return;
+
+        const isBookmark = scanStep.type === 'bookmark';
+        const qrWrap = document.getElementById('continuous-scan-qr-wrap');
+        const bookmark = document.getElementById('continuous-scan-bookmark');
+        const qrCode = document.getElementById('continuous-scan-qrcode');
+        const title = document.getElementById('continuous-scan-title');
+        const name = document.getElementById('continuous-scan-name');
+        const value = document.getElementById('continuous-scan-value');
+
+        document.getElementById('continuous-scan-step').textContent = `${continuousScanStep + 1} / ${continuousScanSteps.length}`;
+        qrWrap.hidden = isBookmark;
+        bookmark.hidden = !isBookmark;
+
+        if (isBookmark) {
+            const bookmarkTitle = scanStep.zoneLabel === '나머지 존'
+                ? '나머지 존 책갈피'
+                : `${scanStep.zoneLabel} 존 책갈피`;
+            title.textContent = bookmarkTitle;
+            name.textContent = '';
+            value.textContent = '';
+            qrCode.innerHTML = '';
+            document.getElementById('continuous-scan-bookmark-message').textContent = `왼쪽으로 스와이프 하여 ${scanStep.zoneLabel} 계속 스캔`;
+        } else {
+            const qrSize = Math.min(260, Math.max(200, window.innerWidth - 72));
+            title.textContent = '제품 QR';
+            name.textContent = scanStep.item.productName;
+            value.textContent = scanStep.item.productCode;
+            qrCode.setAttribute('aria-label', `제품 QR ${scanStep.item.productCode}`);
+            createQRCode(qrCode, scanStep.item.productCode, qrSize);
+        }
+
+        document.getElementById('previousScanStepBtn').disabled = continuousScanStep === 0;
+        document.getElementById('nextScanStepBtn').textContent = continuousScanStep === continuousScanSteps.length - 1 ? '완료' : '다음';
+    }
+
+    function openContinuousScanMode() {
+        const rawQuery = document.getElementById('inventory-search').value;
+        continuousScanSteps = buildContinuousScanSteps(getFilteredInventoryItems(rawQuery));
+        if (!continuousScanSteps.length) return;
+
+        continuousScanStep = 0;
+        continuousScanPreviousFocus = document.activeElement;
+        document.body.classList.add('scan-mode-open');
+        document.getElementById('continuous-scan-dialog').hidden = false;
+        renderContinuousScanStep();
+        document.getElementById('nextScanStepBtn').focus();
+    }
+
+    function closeContinuousScanMode() {
+        document.getElementById('continuous-scan-dialog').hidden = true;
+        document.body.classList.remove('scan-mode-open');
+        continuousScanSteps = [];
+        continuousScanPointerStartX = null;
+        if (continuousScanPreviousFocus instanceof HTMLElement) continuousScanPreviousFocus.focus();
+        continuousScanPreviousFocus = null;
+    }
+
+    function showNextScanStep() {
+        if (continuousScanStep < continuousScanSteps.length - 1) {
+            continuousScanStep += 1;
+            renderContinuousScanStep();
+            return;
+        }
+        closeContinuousScanMode();
+    }
+
+    function showPreviousScanStep() {
+        if (continuousScanStep === 0) return;
+        continuousScanStep -= 1;
+        renderContinuousScanStep();
+    }
+
+    function handleContinuousScanKeydown(event) {
+        if (document.getElementById('continuous-scan-dialog').hidden) return;
+        if (event.key === 'Escape') closeContinuousScanMode();
+        if (event.key === 'ArrowRight') showNextScanStep();
+        if (event.key === 'ArrowLeft') showPreviousScanStep();
+    }
+
+    function handleContinuousScanPointerDown(event) {
+        continuousScanPointerStartX = event.clientX;
+    }
+
+    function handleContinuousScanPointerUp(event) {
+        if (continuousScanPointerStartX === null) return;
+        const deltaX = event.clientX - continuousScanPointerStartX;
+        continuousScanPointerStartX = null;
+        if (Math.abs(deltaX) < 50) return;
+        if (deltaX < 0) showNextScanStep();
+        else showPreviousScanStep();
     }
 
     function removeDirectHistoryItem(key) {
@@ -595,11 +1808,19 @@
         renderHistory();
     }
 
+    function removeWorkUnitHistoryItem(key) {
+        const history = loadWorkUnitHistory().filter((item) => item.key !== key);
+        saveWorkUnitHistory(history);
+        renderWorkUnitHistory();
+    }
+
     function clearHistory() {
         saveHistory([]);
         saveDirectHistory([]);
+        saveWorkUnitHistory([]);
         renderHistory();
         renderDirectHistory();
+        renderWorkUnitHistory();
     }
 
     function applyHistoryToInputs(item) {
@@ -627,7 +1848,45 @@
 
     function handleDirectHistorySelect(item) {
         document.getElementById('productInput').value = item.convertedString === '품명 공백' ? '' : item.convertedString;
-        renderQRCode('product-result-text', 'product-qrcode', '제품 코드', item.convertedString);
+        renderProductPreview();
+    }
+
+    function handleWorkUnitHistorySelect(item) {
+        const currentItem = inventoryItemByLocation.get(item.location) || item;
+        applyInventoryItem(currentItem);
+    }
+
+    function renderWorkUnitHistory() {
+        const historyList = document.getElementById('work-unit-history-list');
+        const history = loadWorkUnitHistory();
+        historyList.innerHTML = '';
+
+        history.forEach((item) => {
+            const li = document.createElement('li');
+            const row = document.createElement('div');
+            row.className = 'history-row';
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'history-item-btn';
+            button.textContent = `${formatHistoryTime(item.timestamp)} ${item.productName} · ${item.productCode} · ${item.location}`;
+            button.addEventListener('click', () => handleWorkUnitHistorySelect(item));
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'emoji-btn delete-btn';
+            deleteBtn.title = '삭제';
+            deleteBtn.setAttribute('aria-label', '제품·위치 작업 내역 삭제');
+            deleteBtn.textContent = '❌';
+            deleteBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                removeWorkUnitHistoryItem(item.key);
+            });
+
+            row.append(button, deleteBtn);
+            li.appendChild(row);
+            historyList.appendChild(li);
+        });
     }
 
     function renderDirectHistory() {
@@ -704,67 +1963,156 @@
         const area = document.getElementById(areaId);
         [card, badge, area].forEach((el) => {
             if (!el) return;
-            el.classList.remove('is-updated');
-            void el.offsetWidth;
+            clearTimeout(liveUpdateTimers.get(el));
             el.classList.add('is-updated');
-            setTimeout(() => el.classList.remove('is-updated'), 300);
+            const timer = setTimeout(() => {
+                el.classList.remove('is-updated');
+                liveUpdateTimers.delete(el);
+            }, 300);
+            liveUpdateTimers.set(el, timer);
         });
     }
 
-    function previewQR() {
-        const productText = document.getElementById('productInput').value.trim() || '품명 공백';
-        renderQRCode('product-result-text', 'product-qrcode', '제품 코드', productText);
+    function renderProductPreview() {
+        const productInput = document.getElementById('productInput');
+        const productText = productInput.value.trim();
+        const resultText = document.getElementById('product-result-text');
+        const qrcode = document.getElementById('product-qrcode');
+        const saveButton = document.getElementById('saveProductBtn');
+        const status = document.getElementById('product-status');
+
+        if (!productText) {
+            qrcode.innerHTML = '';
+            resultText.textContent = '제품 코드를 입력해 주세요.';
+            saveButton.disabled = true;
+            setQRActionButtonsEnabled('product', false);
+            status.textContent = '입력 필요';
+            status.classList.remove('is-updated');
+            return false;
+        }
+
+        saveButton.disabled = false;
+        status.textContent = '실시간 반영됨';
+        if (!renderQRCode('product-result-text', 'product-qrcode', '제품 코드', productText)) {
+            saveButton.disabled = true;
+            setQRActionButtonsEnabled('product', false);
+            status.textContent = 'QR 사용 불가';
+            return false;
+        }
+        setQRActionButtonsEnabled('product', true);
         triggerLiveUpdate('product-card', 'product-status', 'product-qr-area');
+        return true;
+    }
+
+    function handleProductInput() {
+        const productText = document.getElementById('productInput').value.trim();
+        if (selectedInventoryProductCode && productText !== selectedInventoryProductCode) {
+            clearInventorySelection();
+        }
+        renderProductPreview();
+    }
+
+    function renderLocationPreview() {
         const payload = getCurrentPayload();
         if (!payload) return;
-        renderQRCode('zone-result-text', 'zone-qrcode', '적치 구역', payload.convertedString);
+        const saveButton = document.getElementById('saveLocationBtn');
+        const status = document.getElementById('location-status');
+        if (!renderQRCode('zone-result-text', 'zone-qrcode', '적치 구역', payload.convertedString)) {
+            saveButton.disabled = true;
+            setQRActionButtonsEnabled('location', false);
+            status.textContent = 'QR 사용 불가';
+            return false;
+        }
+        saveButton.disabled = false;
+        setQRActionButtonsEnabled('location', true);
+        status.textContent = '실시간 반영됨';
         triggerLiveUpdate('location-card', 'location-status', 'location-qr-area');
+        return true;
+    }
+
+    function previewQR() {
+        renderProductPreview();
+        renderLocationPreview();
     }
 
     function saveProductCode() {
-        const productText = document.getElementById('productInput').value.trim() || '품명 공백';
-        renderQRCode('product-result-text', 'product-qrcode', '제품 코드', productText);
-        triggerLiveUpdate('product-card', 'product-status', 'product-qr-area');
+        const productText = document.getElementById('productInput').value.trim();
+        if (!renderProductPreview()) return;
         addDirectHistoryItem(productText);
     }
 
     function saveLocationCode() {
         const payload = getCurrentPayload();
         if (!payload) return;
-        renderQRCode('zone-result-text', 'zone-qrcode', '적치 구역', payload.convertedString);
+        if (!renderQRCode('zone-result-text', 'zone-qrcode', '적치 구역', payload.convertedString)) return;
         triggerLiveUpdate('location-card', 'location-status', 'location-qr-area');
         addHistoryItem(payload);
     }
 
-    window.onload = () => {
-        initializeZoneInputs();
+    function bindEventListeners() {
         document.getElementById('zoneGroup').addEventListener('change', () => {
+            if (selectedInventoryItem) clearInventorySelection();
             updateZoneCodeOptions();
             applyDefaultsByGroup(true);
-            previewQR();
+            renderLocationPreview();
         });
         document.getElementById('zoneCode').addEventListener('change', () => {
+            if (selectedInventoryItem) clearInventorySelection();
             syncZoneGroupByCode(document.getElementById('zoneCode').value);
             updateZoneNumberOptions();
             updateRackCellOptions();
-            previewQR();
+            renderLocationPreview();
         });
-        document.getElementById('productInput').addEventListener('input', previewQR);
+        document.getElementById('productInput').addEventListener('input', handleProductInput);
         document.getElementById('zoneNumber').addEventListener('change', () => {
+            if (selectedInventoryItem) clearInventorySelection();
             updateRackCellOptions();
-            previewQR();
+            renderLocationPreview();
         });
-        document.getElementById('rackInput').addEventListener('change', previewQR);
-        document.getElementById('cellInput').addEventListener('change', previewQR);
+        document.getElementById('rackInput').addEventListener('change', () => {
+            if (selectedInventoryItem) clearInventorySelection();
+            renderLocationPreview();
+        });
+        document.getElementById('cellInput').addEventListener('change', () => {
+            if (selectedInventoryItem) clearInventorySelection();
+            renderLocationPreview();
+        });
+        document.getElementById('inventory-search').addEventListener('input', handleInventorySearchInput);
+        document.getElementById('inventory-search').addEventListener('keydown', handleInventorySearchKeydown);
+        document.getElementById('bulk-inventory-list').addEventListener('click', handleInventoryListClick);
+        document.getElementById('saveWorkUnitBtn').addEventListener('click', saveSelectedWorkUnit);
+        document.getElementById('startScanModeBtn').addEventListener('click', openContinuousScanMode);
+        document.getElementById('closeScanModeBtn').addEventListener('click', closeContinuousScanMode);
+        document.getElementById('previousScanStepBtn').addEventListener('click', showPreviousScanStep);
+        document.getElementById('nextScanStepBtn').addEventListener('click', showNextScanStep);
+        document.getElementById('continuous-scan-stage').addEventListener('pointerdown', handleContinuousScanPointerDown);
+        document.getElementById('continuous-scan-stage').addEventListener('pointerup', handleContinuousScanPointerUp);
+        document.getElementById('continuous-scan-stage').addEventListener('pointercancel', () => {
+            continuousScanPointerStartX = null;
+        });
+        document.addEventListener('keydown', handleContinuousScanKeydown);
+        document.querySelectorAll('[data-qr-action]').forEach((button) => {
+            button.addEventListener('click', handleQRAction);
+        });
+        document.getElementById('closeQrActionDialogBtn').addEventListener('click', closeQRActionDialog);
+        document.addEventListener('keydown', handleQRActionDialogKeydown);
         document.getElementById('saveProductBtn').addEventListener('click', saveProductCode);
         document.getElementById('saveLocationBtn').addEventListener('click', saveLocationCode);
         document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+    }
 
+    async function initializeApp() {
+        await hydrateExternalConfigs();
+        initializeZoneInputs();
+        bindEventListeners();
         renderHistory();
         renderDirectHistory();
+        renderWorkUnitHistory();
+        renderInventoryList();
         previewQR();
-        hydrateExternalConfigs();
-    };
+    }
+
+    window.addEventListener('DOMContentLoaded', initializeAccessGate);
 </script>
 </body>
 </html>

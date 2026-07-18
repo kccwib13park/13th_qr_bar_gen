@@ -1,94 +1,164 @@
 {
+  "lastUpdated": "2026-07-18",
   "numberOptionLabels": {
     "AB-5": "5 (보충 지번)",
-    "AC-2": "2 (벌크/원빠존)",
-    "AD-2": "2 (벌크존)",
+    "AC-2": "2 (벌크/원 팔레트존)",
+    "AD-2": "2 (벌크/원 팔레트존)",
     "D-8": "8 (육류 전용 보충 지번)",
     "D-9": "9 (소량 보충 지번)",
     "D-10": "10 (소량 보충 지번)",
     "D-11": "11 (소량 보충 지번)",
     "E-0": "0 (벌크 보충 지번)",
-    "E-1": "1 (소량 보충 지번)"
+    "E-1": "1 (소량 보충 지번)",
+    "H-1": "1 (벌크/원 팔레트존)"
   },
   "rackProductCatalog": {
     "AC-2": {
       "zoneType": {
         "splitAt": 15,
         "left": "벌크존",
-        "right": "원빠존"
+        "right": "원 팔레트존"
       },
       "products": {
-        "1": "양파 3kg",
-        "2": "한통 양배추 (대 / 1.5kg)",
-        "3": "[바른팜] 제주 구좌 흙당근 1kg",
-        "4": "[바른팜] 친환경 양파 500g",
-        "5": "[퓨어스펙] 블랙라벨 고당도 오렌지1.5kg(7~8입)",
-        "6": "참타리버섯 200g",
-        "7": "감자 1kg/봉",
-        "8": "[바름팜] 창녕 양파 1.5kg",
-        "9": "[제각각] 작은 양배추 1통(600g)",
-        "10": "[제스프리] 뉴질랜드 루비레드 키위 600g",
-        "11": "양파 1.5kg/망",
-        "12": "스테비아 대추방울토마토 1kg",
-        "13": "성주 꼬마 참외 900g",
-        "14": "제주 무 1통",
-        "15": "[KF365] 새송이버섯 400g",
-        "16": "[KF365] 흙대파 1단 850g",
-        "17": "한통 양배추 (900g)",
-        "18": "[바름팜] 제주 브로콜리 2입",
-        "19": "[바름팜] 영암 꿀고구마 1kg",
-        "20": "깐대파 500g",
-        "22": "채소믹스 500g",
-        "23": "[풀무원] 소가 아삭숙주",
-        "24": "[DOLE] 스위티오 바나나 1.2kg",
-        "25": "13brix 못생겨도 맛있는 사과1.3kg",
-        "26": "대저 토마토 1kg",
-        "27": "성주 참외 1.5kg",
-        "28": "천안 아우내오이 5입",
-        "29": "[제각각] 양파 1.5kg",
-        "30": "[KF365] 파프리카 2입"
+        "1": { "location": "1F-AC2-1-1", "productCode": "MK0000026451", "productName": "양파 1.5kg/망" },
+        "2": { "location": "1F-AC2-2-1", "productCode": "M00000763750", "productName": "[제각각] 흙대파 1kg" },
+        "4": { "location": "1F-AC2-4-1", "productCode": "MK0000061435", "productName": "[바름팜] 영암 꿀고구마 1kg" },
+        "5": { "location": "1F-AC2-5-1", "productCode": "MK0000041020", "productName": "한끼 채소 손질 대파" },
+        "6": { "location": "1F-AC2-6-1", "productCode": "MK0000058732", "productName": "[KF365]참타리버섯 200g" },
+        "7": { "location": "1F-AC2-7-1", "productCode": "M00000456944", "productName": "스테비아 대추방울토마토 1kg" },
+        "8": { "location": "1F-AC2-8-1", "productCode": "MK0000027320", "productName": "깐대파 500g" },
+        "9": { "location": "1F-AC2-9-1", "productCode": "M00000743307", "productName": "[KF365]한통 양배추 1.5kg" },
+        "10": { "location": "1F-AC2-10-1", "productCode": "MK0000026448", "productName": "감자 1kg/봉" },
+        "11": { "location": "1F-AC2-11-1", "productCode": "MK0000061259", "productName": "고랭지 사과 1.3kg" },
+        "12": { "location": "1F-AC2-12-1", "productCode": "MK0000063690", "productName": "완숙토마토 1kg" },
+        "14": { "location": "1F-AC2-14-1", "productCode": "MK0000031395", "productName": "[KF365] 무 1통(1kg)" },
+        "15": { "location": "1F-AC2-15-1", "productCode": "MK0000055489", "productName": "대석 자두 1.5kg" },
+        "16": { "location": "1F-AC2-16-1", "productCode": "M00000414730", "productName": "고소&아삭한 유러피안 채소팩 300g" },
+        "18": { "location": "1F-AC2-18-1", "productCode": "M00000220902", "productName": "거봉 포도 650g" },
+        "19": { "location": "1F-AC2-19-1", "productCode": "P00000CR000A", "productName": "[바름팜] 친환경 당근" },
+        "20": { "location": "1F-AC2-20-1", "productCode": "MK0000049921", "productName": "[KF365] 새송이버섯 400g" },
+        "21": { "location": "1F-AC2-21-1", "productCode": "MK0000071102", "productName": "[KF365] 친환경 표고버섯 300g" },
+        "22": { "location": "1F-AC2-22-1", "productCode": "MK0000063700", "productName": "양파 3kg" },
+        "23": { "location": "1F-AC2-23-1", "productCode": "MK0000030557", "productName": "[KF365] 파프리카 2입" },
+        "24": { "location": "1F-AC2-24-1", "productCode": "M00000038416", "productName": "채소믹스 500g" },
+        "25": { "location": "1F-AC2-25-1", "productCode": "M00000157492", "productName": "싱그러운 유러피안 샐러드믹스 110g" },
+        "26": { "location": "1F-AC2-26-1", "productCode": "MK0000031100", "productName": "양상추 1통" },
+        "27": { "location": "1F-AC2-27-1", "productCode": "MK0000049631", "productName": "성주 참외 1.5kg" },
+        "28": { "location": "1F-AC2-28-1", "productCode": "MK0000054660", "productName": "[KF365] 브로콜리 1입" },
+        "29": { "location": "1F-AC2-29-1", "productCode": "M00000157493", "productName": "싱그러운 유러피안 샐러드믹스 200g" },
+        "30": { "location": "1F-AC2-30-1", "productCode": "MK0000071327", "productName": "[풀무원] 소가 아삭숙주" }
       }
     },
     "AD-2": {
       "zoneType": {
-        "fixed": "벌크존"
+        "splitAt": 10,
+        "left": "벌크존",
+        "right": "원 팔레트존"
       },
       "products": {
-        "1": "14brix 못생겨도 맛있는 사과1.5kg",
-        "3": "[바름팜] 제주산 양배추 1통 (900g)",
-        "4": "[밀도] 로얄우유식빵",
-        "5": "[KF365] 양념 소불고기 1kg (냉장)",
-        "7": "알배기 배추",
-        "8": "[KF365] 춘천식 닭갈비 1kg (냉장)",
-        "9": "[김구원선생] 장수콩나물 600g"
+        "1": { "location": "1F-AD2-1-1", "productCode": "MK0000079512", "productName": "[삼립] 클래식 우유 식빵" },
+        "2": { "location": "1F-AD2-2-1", "productCode": "MK0000145669", "productName": "[자연실록] 무항생제 두마리 통닭 (550gX2입)" },
+        "3": { "location": "1F-AD2-3-1", "productCode": "M00000230124", "productName": "신비 복숭아1kg(7~11입)" },
+        "4": { "location": "1F-AD2-4-1", "productCode": "MK0000063043", "productName": "[KF365] 흙대파 1단 850g" },
+        "5": { "location": "1F-AD2-5-1", "productCode": "MK0000132780", "productName": "[제스프리] 뉴질랜드 골드키위 1.1kg" },
+        "6": { "location": "1F-AD2-6-1", "productCode": "M00000799607", "productName": "취향대로 익혀먹는 아보카도 850g (4~6입)(페루산)" },
+        "7": { "location": "1F-AD2-7-1", "productCode": "MK0000027319", "productName": "알배기 배추" },
+        "11": { "location": "1F-AD2-11-1", "productCode": "M00000743834", "productName": "[YOZM] 드링크 그릭요거트 스타터 1.8L" },
+        "13": { "location": "1F-AD2-13-1", "productCode": "M00000486379", "productName": "[김구원선생] 장수콩나물 600g" },
+        "14": { "location": "1F-AD2-14-1", "productCode": "M00000522908", "productName": "미국산 워싱턴 생체리 300g (10row)" },
+        "15": { "location": "1F-AD2-15-1", "productCode": "M00000231710", "productName": "[남양] 불가리스 그릭 요거트 설탕 무첨가 플레인 400g" },
+        "16": { "location": "1F-AD2-16-1", "productCode": "M00000826614", "productName": "바로먹는 아보카도(3입) (페루산)" },
+        "17": { "location": "1F-AD2-17-1", "productCode": "M00000722483", "productName": "13brix 못생겨도 맛있는 사과1.3kg" },
+        "18": { "location": "1F-AD2-18-1", "productCode": "M00000519822", "productName": "[바름팜] 친환경 당근 1kg" },
+        "19": { "location": "1F-AD2-19-1", "productCode": "M0000020697", "productName": "유명산지 고당도사과 1.5kg" },
+        "20": { "location": "1F-AD2-20-1", "productCode": "M00000582306", "productName": "와일드 루꼴라 100g" }
       }
     },
     "H-1": {
       "zoneType": {
         "splitAt": 13,
-        "left": "투빠존",
-        "right": "원빠존"
+        "left": "벌크존",
+        "right": "원 팔레트존"
       },
       "products": {
-        "1": "[DOLE] 스위티오 바나나 1kg",
-        "2": "[연세우유 x 마켓컬리] 전용목장우유 900mL",
-        "3": "[Kurly's] 국산콩 2컵두부",
-        "4": "[차려낸] 햄 가득 송탄식 부대찌개",
-        "5": "[KF365] 팽이버섯 300g 2입",
-        "6": "[연세우유 x 마켓컬리] 전용목장우유 1.8L",
-        "7": "다다기오이 3입",
-        "8": "[Kurly's] 국산콩 두부 500g",
-        "9": "[매일] 바이오 그릭 요거트 400g",
-        "10": "[Kurly's] 국산콩 두부",
-        "11": "무농약 국산콩 콩나물 300g",
-        "12": "[KF365] 대추방울토마토 750g",
-        "13": "애호박",
-        "14": "취향대로 익혀먹는 아보카도 850g (4~6입)(페루산)",
-        "16": "MY FIRST 처음 만나는 진짜 모닝롤",
-        "17": "[서울우유x마켓컬리] 치즈다운 치즈",
-        "18": "스테비아 대추방울토마토 450g",
-        "20": "[제주우유] 제주목초우유 무항생제 750mL",
-        "21": "[KF365] [DOLE] 실속 바나나 1kg"
+        "1": { "location": "1F-H1-1-1", "productCode": "MK0000031442", "productName": "[DOLE] 스위티오 바나나 1kg" },
+        "2": { "location": "1F-H1-2-1", "productCode": "MK0000063110", "productName": "[연세우유 x 마켓컬리] 전용목장우유 900mL" },
+        "3": { "location": "1F-H1-3-1", "productCode": "MK0000118043", "productName": "[Kurly's] 국산콩 2컵두부" },
+        "4": { "location": "1F-H1-4-1", "productCode": "M00000445542", "productName": "[차려낸] 햄 가득 송탄식 부대찌개" },
+        "5": { "location": "1F-H1-5-1", "productCode": "MK0000031391", "productName": "[KF365] 팽이버섯 300g 2입" },
+        "6": { "location": "1F-H1-6-1", "productCode": "M00000105897", "productName": "[연세우유 x 마켓컬리] 전용목장우유 1.8L" },
+        "7": { "location": "1F-H1-7-1", "productCode": "MK0000054657", "productName": "다다기오이 3입" },
+        "8": { "location": "1F-H1-8-1", "productCode": "MK0000118044", "productName": "[Kurly's] 국산콩 두부 500g" },
+        "9": { "location": "1F-H1-9-1", "productCode": "MK0000097217", "productName": "[매일] 바이오 그릭 요거트 400g" },
+        "10": { "location": "1F-H1-10-1", "productCode": "MK0000053329", "productName": "[Kurly's] 국산콩 두부" },
+        "11": { "location": "1F-H1-11-1", "productCode": "M00000039379", "productName": "무농약 국산콩 콩나물 300g" },
+        "12": { "location": "1F-H1-12-1", "productCode": "MK0000063578", "productName": "[KF365] 대추방울토마토 750g" },
+        "13": { "location": "1F-H1-13-1", "productCode": "MK0000030559", "productName": "애호박" },
+        "14": { "location": "1F-H1-14-1", "productCode": "M00000052481", "productName": "[KF365] 통통한 그릴 비엔나 소시지 700g" },
+        "15": { "location": "1F-H1-15-1", "productCode": "M00000060435", "productName": "[KF365] 머스크멜론 1.6kg" },
+        "16": { "location": "1F-H1-16-1", "productCode": "M00000039339", "productName": "와일드 루꼴라 50g" },
+        "17": { "location": "1F-H1-17-1", "productCode": "MK0000081598", "productName": "[서울우유x마켓컬리] 치즈다운 치즈" },
+        "18": { "location": "1F-H1-18-1", "productCode": "M00000195798", "productName": "스테비아 대추방울토마토 450g" },
+        "19": { "location": "1F-H1-19-1", "productCode": "MK0000012569", "productName": "MY FIRST 처음 만나는 진짜 모닝롤" },
+        "20": { "location": "1F-H1-20-1", "productCode": "M00000035562", "productName": "[제주우유] 제주목초우유 무항생제 750mL" },
+        "21": { "location": "1F-H1-21-1", "productCode": "MK0000031441", "productName": "[kf365] [DOLE] 실속 바나나 1kg" }
+      }
+    },
+    "BA-1": {
+      "zoneType": { "fixed": "BA1" },
+      "products": {
+        "1": { "location": "1F-BA1-1-1", "productCode": "M00000028477", "productName": "[한국야쿠르트] 야쿠르트 오리지널 (65mL x 20개)" },
+        "2": { "location": "1F-BA1-2-1", "productCode": "M00000590569", "productName": "[아프로그릭] 유당제로 그릭요거트 100g" },
+        "3": { "location": "1F-BA1-3-1", "productCode": "M00000030607", "productName": "[조인] 동물복지 유정 반숙란 20구" },
+        "4": { "location": "1F-BA1-4-1", "productCode": "M00000263720", "productName": "[99계란] 99구운란 30구 (15구*2ea)" },
+        "5": { "location": "1F-BA1-5-1", "productCode": "M00000068135", "productName": "[필라델피아] 크림치즈 플레인 190g" },
+        "6": { "location": "1F-BA1-6-1", "productCode": "M00000184691", "productName": "[가능바이오] 단백이" },
+        "7": { "location": "1F-BA1-7-1", "productCode": "M00000039209", "productName": "[가능바이오] 촉촉하게 삶아낸 반숙란 20구" },
+        "8": { "location": "1F-BA1-8-1", "productCode": "M00000036657", "productName": "[KF365] 깐 메추리알 800g" },
+        "9": { "location": "1F-BA1-9-1", "productCode": "M00000035227", "productName": "[자연애찬] 비빔 반숙란 (수란) 10구" },
+        "10": { "location": "1F-BA1-10-1", "productCode": "M00000117851", "productName": "[본죽] 메추리알 장조림 1KG" },
+        "11": { "location": "1F-BA1-11-1", "productCode": "M00000521204", "productName": "[1] [모두의식단] 냉장 닭가슴살 100g(냉장) 10개입" },
+        "12": { "location": "1F-BA1-12-1", "productCode": "M00000063458", "productName": "[KF365] 무항생제 백색 대란 20구" },
+        "13": { "location": "1F-BA1-13-1", "productCode": "M00000043766", "productName": "[Kurly's] 자유방목 동물복지 유정란 10구" },
+        "14": { "location": "1F-BA1-14-1", "productCode": "M00000081474", "productName": "[상하농원] 동물복지 구운란 15구" }
+      }
+    },
+    "BC-1": {
+      "zoneType": { "fixed": "B존 벽면" },
+      "products": {
+        "24": { "location": "1F-BC1-24-1", "productCode": "MK0000061738", "productName": "[빙그레] 바나나맛 우유 4개입" },
+        "25": { "location": "1F-BC1-25-1", "productCode": "M00000860691", "productName": "[아카페라] 심플리 로어슈거 라떼 (400mL X 6개)" },
+        "26": { "location": "1F-BC1-26-1", "productCode": "MK0000141883", "productName": "[오뚜기] 짜슐랭 5입" },
+        "27": { "location": "1F-BC1-27-1", "productCode": "MK0000025634", "productName": "[슈퍼너츠] 피넛버터 크런치 460g" }
+      }
+    },
+    "BC-2": {
+      "zoneType": { "fixed": "B존 벽면" },
+      "products": {
+        "18": { "location": "1F-BC2-18-1", "productCode": "M00000404718", "productName": "[서울우유] 나 100% 우유 2.3L 오리지널" },
+        "19": { "location": "1F-BC2-19-1", "productCode": "M00000860694", "productName": "[아카페라] 심플리 디카페인 아메리카노 (400mL X 6개)" },
+        "20": { "location": "1F-BC2-20-1", "productCode": "MK0000100808", "productName": "[오뚜기] 오동통면 5입 (다시마2ea)" },
+        "21": { "location": "1F-BC2-21-1", "productCode": "M00000566463", "productName": "[코다노] 트리플 슈레드 피자치즈 1kg" }
+      }
+    },
+    "BD-1": {
+      "zoneType": { "fixed": "B존 벽면" },
+      "products": {
+        "28": { "location": "1F-BD1-28-1", "productCode": "M00000233040", "productName": "[그리데이] 플레인 1.8L" },
+        "29": { "location": "1F-BD1-29-1", "productCode": "MK0000061306", "productName": "[오뚜기] 진라면 매운맛 5입" },
+        "30": { "location": "1F-BD1-30-1", "productCode": "MK0000133941", "productName": "[조선호텔] 삼계탕 900g" },
+        "31": { "location": "1F-BD1-31-1", "productCode": "MK0000062739", "productName": "[15][KF365] 고소한 파래도시락김 4g*16P" },
+        "32": { "location": "1F-BD1-32-1", "productCode": "MK0000049727", "productName": "[서울우유] 나 100% 우유 1.8L" }
+      }
+    },
+    "BD-2": {
+      "zoneType": { "fixed": "B존 벽면" },
+      "products": {
+        "20": { "location": "1F-BD2-20-1", "productCode": "M00000102645", "productName": "[남양] 맛있는 우유 GT (900mL x 2입)" },
+        "21": { "location": "1F-BD2-21-1", "productCode": "M00000241620", "productName": "[이스트밸리] 목초먹은 우유로 만든 모짜렐라 피자치즈 240g" },
+        "22": { "location": "1F-BD2-22-1", "productCode": "MK0000072582", "productName": "Kurly's 샌드위치용 달걀듬뿍 샐러드 500g" },
+        "23": { "location": "1F-BD2-23-1", "productCode": "M00000141965", "productName": "[매일] 어메이징 오트 바리스타 950mL" },
+        "24": { "location": "1F-BD2-24-1", "productCode": "MK0000071454", "productName": "[돈시몬] 오렌지 주스 2L" }
       }
     }
   }

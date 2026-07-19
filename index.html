@@ -876,7 +876,10 @@
     let selectedInventoryItem = null;
     let inventoryItems = [];
     let inventoryItemByKey = new Map();
+    let exactInventoryItemsByKey = new Map();
+    let inventoryButtonByKey = new Map();
     let inventorySearchTimer = null;
+    let inventorySearchRequestId = 0;
     let continuousScanStep = 0;
     let continuousScanSteps = [];
     let continuousScanPointer = null;
@@ -884,6 +887,7 @@
     let qrActionDialogPreviousFocus = null;
     let appToastTimer = null;
     const liveUpdateTimers = new WeakMap();
+    const renderedQRCodes = new WeakMap();
 
     function pad2(n) { return String(n).padStart(2, '0'); }
 
@@ -1211,6 +1215,14 @@
 
         inventoryItems = [...rackInventoryItems, ...multivendorInventoryItems];
         inventoryItemByKey = new Map(inventoryItems.map((item) => [item.itemKey, item]));
+        exactInventoryItemsByKey = new Map();
+        inventoryItems.forEach((item) => {
+            item.exactSearchKeys.forEach((key) => {
+                const matches = exactInventoryItemsByKey.get(key) || [];
+                matches.push(item);
+                exactInventoryItemsByKey.set(key, matches);
+            });
+        });
     }
 
     function getInventoryItems() {
@@ -1234,6 +1246,7 @@
 
     function applyInventoryItem(item) {
         const itemKey = item.itemKey || `bulk:${item.location}`;
+        const previousItemKey = selectedInventoryKey;
         const location = item.locationMode === 'temporary'
             ? { ...groupDefaults.TEMP_LOT, zoneCode: 'TEMP_LOT', zoneNumber: groupDefaults.TEMP_LOT.number }
             : parseInventoryLocation(item.location);
@@ -1262,29 +1275,35 @@
         document.getElementById('inventory-selected-meta').textContent = `${item.zoneType} · ${item.location} · ${item.productCode}`;
         document.getElementById('saveWorkUnitBtn').disabled = false;
 
-        document.querySelectorAll('.inventory-item-btn').forEach((button) => {
-            const isSelected = button.dataset.inventoryKey === itemKey;
-            button.classList.toggle('is-selected', isSelected);
-            button.setAttribute('aria-pressed', String(isSelected));
-        });
+        updateInventorySelectedButton(previousItemKey, itemKey);
+    }
+
+    function updateInventorySelectedButton(previousItemKey = '', nextItemKey = '') {
+        const previousButton = inventoryButtonByKey.get(previousItemKey);
+        if (previousButton && previousItemKey !== nextItemKey) {
+            previousButton.classList.remove('is-selected');
+            previousButton.setAttribute('aria-pressed', 'false');
+        }
+        const nextButton = inventoryButtonByKey.get(nextItemKey);
+        if (nextButton) {
+            nextButton.classList.add('is-selected');
+            nextButton.setAttribute('aria-pressed', 'true');
+        }
     }
 
     function clearInventorySelection({ clearLinkedProduct = false } = {}) {
         const linkedProductCode = selectedInventoryProductCode;
+        updateInventorySelectedButton(selectedInventoryKey, '');
         selectedInventoryKey = '';
         selectedInventoryProductCode = '';
         selectedInventoryItem = null;
 
         document.getElementById('inventory-qr-placeholder').hidden = false;
         document.getElementById('inventory-qrcode-wrap').hidden = true;
-        document.getElementById('inventory-qrcode').innerHTML = '';
+        clearQRCode(document.getElementById('inventory-qrcode'));
         document.getElementById('inventory-selected-name').textContent = '선택된 제품 없음';
         document.getElementById('inventory-selected-meta').textContent = '';
         document.getElementById('saveWorkUnitBtn').disabled = true;
-        document.querySelectorAll('.inventory-item-btn').forEach((button) => {
-            button.classList.remove('is-selected');
-            button.setAttribute('aria-pressed', 'false');
-        });
 
         const productInput = document.getElementById('productInput');
         if (clearLinkedProduct && productInput.value.trim() === linkedProductCode) {
@@ -1293,8 +1312,7 @@
         }
     }
 
-    function getFilteredInventoryItems(rawQuery = '') {
-        const query = normalizeInventorySearch(rawQuery);
+    function getFilteredInventoryItems(query = '') {
         return query
             ? getInventoryItems().filter((item) => item.normalizedSearchText.includes(query))
             : getInventoryItems();
@@ -1306,7 +1324,7 @@
         const count = document.getElementById('inventory-count');
         const query = normalizeInventorySearch(rawQuery);
         const allItems = getInventoryItems();
-        const filteredItems = getFilteredInventoryItems(rawQuery);
+        const filteredItems = getFilteredInventoryItems(query);
         document.getElementById('startScanModeBtn').disabled = filteredItems.length === 0;
 
         if (selectedInventoryKey && !filteredItems.some((item) => item.itemKey === selectedInventoryKey)) {
@@ -1317,13 +1335,13 @@
         status.textContent = query
             ? filteredItems.length ? `통합 검색 결과 ${filteredItems.length}개` : '일치하는 재고 항목이 없습니다.'
             : 'H1 → BD → BC → AD → AC → 나머지 존 → 멀티밴더 순서로 표시됩니다.';
-        inventoryList.innerHTML = '';
+        inventoryButtonByKey = new Map();
 
         if (!filteredItems.length) {
             const emptyItem = document.createElement('li');
             emptyItem.className = 'inventory-empty';
             emptyItem.textContent = '검색 결과가 없습니다.';
-            inventoryList.appendChild(emptyItem);
+            inventoryList.replaceChildren(emptyItem);
             return;
         }
 
@@ -1338,6 +1356,7 @@
             const isSelected = selectedInventoryKey === item.itemKey;
             button.classList.toggle('is-selected', isSelected);
             button.setAttribute('aria-pressed', String(isSelected));
+            inventoryButtonByKey.set(item.itemKey, button);
 
             const nameRow = document.createElement('span');
             nameRow.className = 'inventory-item-name-row';
@@ -1374,7 +1393,7 @@
             listItem.appendChild(button);
             fragment.appendChild(listItem);
         });
-        inventoryList.appendChild(fragment);
+        inventoryList.replaceChildren(fragment);
     }
 
     function handleInventoryListClick(event) {
@@ -1386,18 +1405,22 @@
 
     function handleInventorySearchInput(event) {
         const query = event.currentTarget.value;
+        const requestId = ++inventorySearchRequestId;
         clearTimeout(inventorySearchTimer);
-        inventorySearchTimer = setTimeout(() => renderInventoryList(query), 120);
+        inventorySearchTimer = setTimeout(() => {
+            if (requestId === inventorySearchRequestId) renderInventoryList(query);
+        }, 90);
     }
 
     function handleInventorySearchKeydown(event) {
         if (event.key !== 'Enter') return;
         const query = normalizeInventorySearch(event.currentTarget.value);
         if (!query) return;
-        const exactMatches = inventoryItems.filter((item) => item.exactSearchKeys.includes(query));
+        const exactMatches = exactInventoryItemsByKey.get(query) || [];
         if (exactMatches.length !== 1) return;
 
         event.preventDefault();
+        inventorySearchRequestId += 1;
         clearTimeout(inventorySearchTimer);
         renderInventoryList(event.currentTarget.value);
         applyInventoryItem(exactMatches[0]);
@@ -1615,21 +1638,32 @@
     }
 
     function createQRCode(qrcodeDiv, text, size = 180) {
-        qrcodeDiv.innerHTML = '';
+        const qrText = String(text);
+        const previousRender = renderedQRCodes.get(qrcodeDiv);
+        if (previousRender?.text === qrText && previousRender.size === size && qrcodeDiv.childElementCount) {
+            return true;
+        }
+        clearQRCode(qrcodeDiv);
         if (!isQRCodeAvailable()) {
             showQRCodeLoadWarning();
             return false;
         }
 
         new window.QRCode(qrcodeDiv, {
-            text,
+            text: qrText,
             width: size,
             height: size,
             colorDark : '#000000',
             colorLight : '#ffffff',
             correctLevel : window.QRCode.CorrectLevel.H
         });
+        renderedQRCodes.set(qrcodeDiv, { text: qrText, size });
         return true;
+    }
+
+    function clearQRCode(qrcodeDiv) {
+        renderedQRCodes.delete(qrcodeDiv);
+        qrcodeDiv.replaceChildren();
     }
 
     function renderQRCode(resultTextId, qrCodeId, title, text) {
@@ -1717,7 +1751,7 @@
         document.getElementById('qr-action-dialog').hidden = true;
         setPageContentInert(false);
         document.body.classList.remove('qr-modal-open');
-        document.getElementById('qr-action-dialog-qrcode').innerHTML = '';
+        clearQRCode(document.getElementById('qr-action-dialog-qrcode'));
         if (qrActionDialogPreviousFocus instanceof HTMLElement) qrActionDialogPreviousFocus.focus();
         qrActionDialogPreviousFocus = null;
     }
@@ -2022,7 +2056,7 @@
             title.textContent = bookmarkTitle;
             name.textContent = '';
             value.textContent = '';
-            qrCode.innerHTML = '';
+            clearQRCode(qrCode);
             document.getElementById('continuous-scan-bookmark-message').textContent = `왼쪽으로 스와이프 하여 ${scanStep.zoneLabel} 계속 스캔`;
         } else {
             const qrSize = Math.min(multivendorDetails ? 220 : 260, Math.max(180, window.innerWidth - 72));
@@ -2060,7 +2094,7 @@
 
     function openContinuousScanMode() {
         const rawQuery = document.getElementById('inventory-search').value;
-        continuousScanSteps = buildContinuousScanSteps(getFilteredInventoryItems(rawQuery));
+        continuousScanSteps = buildContinuousScanSteps(getFilteredInventoryItems(normalizeInventorySearch(rawQuery)));
         if (!continuousScanSteps.length) return;
 
         continuousScanStep = 0;
@@ -2344,7 +2378,7 @@
         const status = document.getElementById('product-status');
 
         if (!productText) {
-            qrcode.innerHTML = '';
+            clearQRCode(qrcode);
             resultText.textContent = '제품 코드를 입력해 주세요.';
             saveButton.disabled = true;
             setQRActionButtonsEnabled('product', false);

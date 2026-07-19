@@ -21,13 +21,25 @@ test('대량 지번 검색은 사전 계산 인덱스와 단일 이벤트 리스
   assert.match(indexHtml, /normalizedSearchText: normalizeInventorySearch/);
   assert.match(indexHtml, /item\.normalizedSearchText\.includes\(query\)/);
   assert.match(indexHtml, /new Map\(inventoryItems\.map/);
+  assert.match(indexHtml, /exactInventoryItemsByKey\.get\(query\)/);
   assert.match(indexHtml, /createDocumentFragment\(\)/);
+  assert.match(indexHtml, /inventoryList\.replaceChildren\(fragment\)/);
   assert.match(indexHtml, /bulk-inventory-list'\)\.addEventListener\('click', handleInventoryListClick\)/);
   assert.doesNotMatch(indexHtml, /button\.addEventListener\('click', \(\) => applyInventoryItem/);
 });
 
 test('검색 입력은 디바운스하고 애니메이션은 강제 레이아웃을 만들지 않는다', () => {
-  assert.match(indexHtml, /setTimeout\(\(\) => renderInventoryList\(query\), 120\)/);
+  assert.match(indexHtml, /requestId === inventorySearchRequestId/);
+  assert.match(indexHtml, /}, 90\)/);
   assert.match(indexHtml, /const liveUpdateTimers = new WeakMap\(\)/);
   assert.doesNotMatch(indexHtml, /offsetWidth/);
+});
+
+test('선택 상태와 QR 렌더링은 변경된 대상만 갱신한다', () => {
+  assert.match(indexHtml, /let inventoryButtonByKey = new Map\(\)/);
+  assert.match(indexHtml, /function updateInventorySelectedButton/);
+  assert.doesNotMatch(indexHtml, /querySelectorAll\('\.inventory-item-btn'\)\.forEach/);
+  assert.match(indexHtml, /const renderedQRCodes = new WeakMap\(\)/);
+  assert.match(indexHtml, /previousRender\?\.text === qrText/);
+  assert.match(indexHtml, /renderedQRCodes\.set\(qrcodeDiv, \{ text: qrText, size \}\)/);
 });

@@ -25,7 +25,7 @@ test('통합 검색 UI가 스캐너 친화적인 입력 설정을 제공한다',
 test('Enter는 정확히 한 항목과 일치할 때만 선택한다', () => {
   const handler = indexHtml.match(/function handleInventorySearchKeydown\(event\) \{([\s\S]*?)\n    \}/)?.[1] || '';
   assert.match(handler, /event\.key !== 'Enter'/);
-  assert.match(handler, /item\.exactSearchKeys\.includes\(query\)/);
+  assert.match(handler, /exactInventoryItemsByKey\.get\(query\)/);
   assert.match(handler, /exactMatches\.length !== 1/);
   assert.match(handler, /applyInventoryItem\(exactMatches\[0\]\)/);
   assert.match(indexHtml, /addEventListener\('keydown', handleInventorySearchKeydown\)/);

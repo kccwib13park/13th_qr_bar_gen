@@ -13,6 +13,8 @@ function extractFunction(name) {
 const getInventoryZoneGroupSource = extractFunction('getInventoryZoneGroup');
 const compareInventoryZoneKeysSource = extractFunction('compareInventoryZoneKeys');
 const buildContinuousScanStepsSource = extractFunction('buildContinuousScanSteps');
+const classifySwipeGestureSource = extractFunction('classifySwipeGesture');
+const getContinuousScanTransitionSource = extractFunction('getContinuousScanTransition');
 
 const { getInventoryZoneGroup, compareInventoryZoneKeys, buildContinuousScanSteps } = new Function(`
   const INVENTORY_ZONE_PRIORITY = ['H1', 'BD', 'BC', 'AD', 'AC', 'OTHER'];
@@ -20,6 +22,12 @@ const { getInventoryZoneGroup, compareInventoryZoneKeys, buildContinuousScanStep
   ${compareInventoryZoneKeysSource}
   ${buildContinuousScanStepsSource}
   return { getInventoryZoneGroup, compareInventoryZoneKeys, buildContinuousScanSteps };
+`)();
+
+const { classifySwipeGesture, getContinuousScanTransition } = new Function(`
+  ${classifySwipeGestureSource}
+  ${getContinuousScanTransitionSource}
+  return { classifySwipeGesture, getContinuousScanTransition };
 `)();
 
 test('대량 지번과 검색 결과의 존 우선순위는 H1, BD, BC, AD, AC, 나머지 순이다', () => {
@@ -81,11 +89,41 @@ test('접근 가능한 전체 화면 대화상자와 큰 존 전환 안내를 �
   assert.match(indexHtml, /id="closeScanModeBtn"[^>]*aria-label="연속 스캔 닫기"/);
 });
 
-test('하단 버튼, 키보드, 왼쪽 스와이프로 다음 항목으로 이동한다', () => {
+test('버튼, 키보드, 스와이프가 공통 단계 이동 함수를 사용한다', () => {
   assert.match(indexHtml, /event\.key === 'ArrowRight'/);
   assert.match(indexHtml, /event\.key === 'ArrowLeft'/);
   assert.match(indexHtml, /event\.key === 'Escape'/);
-  assert.match(indexHtml, /Math\.abs\(deltaX\) < 50/);
-  assert.match(indexHtml, /if \(deltaX < 0\) showNextScanStep\(\)/);
+  assert.match(indexHtml, /moveContinuousScanStep\(1\)/);
+  assert.match(indexHtml, /moveContinuousScanStep\(-1\)/);
+  assert.match(indexHtml, /moveContinuousScanStep\(direction\)/);
   assert.match(indexHtml, /continuous-scan-controls \{[^}]*grid-template-columns: 1fr 1fr/);
+});
+
+test('수평 스와이프만 방향으로 판정하고 탭과 수직 스크롤은 무시한다', () => {
+  assert.equal(classifySwipeGesture({ deltaX: -80, deltaY: 12, durationMs: 300 }), 1);
+  assert.equal(classifySwipeGesture({ deltaX: 80, deltaY: 12, durationMs: 300 }), -1);
+  assert.equal(classifySwipeGesture({ deltaX: -30, deltaY: 2, durationMs: 100 }), 0);
+  assert.equal(classifySwipeGesture({ deltaX: -80, deltaY: 100, durationMs: 300 }), 0);
+  assert.equal(classifySwipeGesture({ deltaX: -60, deltaY: 4, durationMs: 700 }), 0);
+  assert.equal(classifySwipeGesture({ deltaX: -60, deltaY: 4, durationMs: 120 }), 1);
+  assert.match(indexHtml, /pointercancel', cancelContinuousScanPointer/);
+  assert.match(indexHtml, /lostpointercapture', cancelContinuousScanPointer/);
+  assert.match(indexHtml, /Math\.abs\(deltaY\) > Math\.abs\(deltaX\)/);
+});
+
+test('첫 단계 이전은 유지하고 마지막 단계 다음은 기존 완료 동작을 실행한다', () => {
+  assert.deepEqual(getContinuousScanTransition(0, 3, -1), { action: 'stay', step: 0 });
+  assert.deepEqual(getContinuousScanTransition(1, 3, -1), { action: 'move', step: 0 });
+  assert.deepEqual(getContinuousScanTransition(1, 3, 1), { action: 'move', step: 2 });
+  assert.deepEqual(getContinuousScanTransition(2, 3, 1), { action: 'complete', step: 2 });
+});
+
+test('연속 스캔과 QR 확대 대화상자는 외부 포커스를 차단하고 포커스를 복귀한다', () => {
+  assert.match(indexHtml, /function trapDialogFocus\(event, dialog\)/);
+  assert.match(indexHtml, /setPageContentInert\(true\)/);
+  assert.match(indexHtml, /setPageContentInert\(false\)/);
+  assert.match(indexHtml, /continuousScanPreviousFocus instanceof HTMLElement/);
+  assert.match(indexHtml, /qrActionDialogPreviousFocus instanceof HTMLElement/);
+  assert.match(indexHtml, /aria-describedby="continuous-scan-step"/);
+  assert.match(indexHtml, /aria-describedby="qr-action-dialog-value"/);
 });

@@ -369,7 +369,7 @@
     </div>
 </div>
 
-<section id="continuous-scan-dialog" class="continuous-scan-dialog" role="dialog" aria-modal="true" aria-labelledby="continuous-scan-heading" hidden>
+<section id="continuous-scan-dialog" class="continuous-scan-dialog" role="dialog" aria-modal="true" aria-labelledby="continuous-scan-heading" aria-describedby="continuous-scan-step" hidden>
     <header class="continuous-scan-header">
         <h2 id="continuous-scan-heading">연속 스캔</h2>
         <button id="closeScanModeBtn" class="emoji-btn" type="button" aria-label="연속 스캔 닫기">✕</button>
@@ -409,7 +409,7 @@
     </footer>
 </section>
 
-<section id="qr-action-dialog" class="qr-action-dialog" role="dialog" aria-modal="true" aria-labelledby="qr-action-dialog-title" hidden>
+<section id="qr-action-dialog" class="qr-action-dialog" role="dialog" aria-modal="true" aria-labelledby="qr-action-dialog-title" aria-describedby="qr-action-dialog-value" hidden>
     <header class="continuous-scan-header">
         <h2 id="qr-action-dialog-title">QR 확대</h2>
         <button id="closeQrActionDialogBtn" class="emoji-btn" type="button" aria-label="QR 확대 닫기">✕</button>
@@ -824,7 +824,7 @@
     let inventorySearchTimer = null;
     let continuousScanStep = 0;
     let continuousScanSteps = [];
-    let continuousScanPointerStartX = null;
+    let continuousScanPointer = null;
     let continuousScanPreviousFocus = null;
     let qrActionDialogPreviousFocus = null;
     let appToastTimer = null;
@@ -1646,6 +1646,7 @@
 
     function openQRActionDialog(data, trigger) {
         qrActionDialogPreviousFocus = trigger;
+        setPageContentInert(true);
         document.body.classList.add('qr-modal-open');
         document.getElementById('qr-action-dialog').hidden = false;
         document.getElementById('qr-action-dialog-title').textContent = `${data.label} 확대`;
@@ -1659,6 +1660,7 @@
 
     function closeQRActionDialog() {
         document.getElementById('qr-action-dialog').hidden = true;
+        setPageContentInert(false);
         document.body.classList.remove('qr-modal-open');
         document.getElementById('qr-action-dialog-qrcode').innerHTML = '';
         if (qrActionDialogPreviousFocus instanceof HTMLElement) qrActionDialogPreviousFocus.focus();
@@ -1666,8 +1668,14 @@
     }
 
     function handleQRActionDialogKeydown(event) {
-        if (event.key !== 'Escape' || document.getElementById('qr-action-dialog').hidden) return;
-        closeQRActionDialog();
+        const dialog = document.getElementById('qr-action-dialog');
+        if (dialog.hidden) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeQRActionDialog();
+            return;
+        }
+        trapDialogFocus(event, dialog);
     }
 
     async function copyQRCodeValue(data) {
@@ -1868,6 +1876,57 @@
         return steps;
     }
 
+    function setPageContentInert(isInert) {
+        const pageContent = document.querySelector('.container');
+        if (pageContent) pageContent.inert = isInert;
+    }
+
+    function getDialogFocusableElements(dialog) {
+        return [...dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+            .filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true');
+    }
+
+    function trapDialogFocus(event, dialog) {
+        if (event.key !== 'Tab') return false;
+        const focusableElements = getDialogFocusableElements(dialog);
+        if (!focusableElements.length) {
+            event.preventDefault();
+            return true;
+        }
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        if (event.shiftKey && document.activeElement === firstElement) {
+            event.preventDefault();
+            lastElement.focus();
+        } else if (!event.shiftKey && document.activeElement === lastElement) {
+            event.preventDefault();
+            firstElement.focus();
+        }
+        return true;
+    }
+
+    function classifySwipeGesture({ deltaX, deltaY, durationMs }) {
+        const horizontalDistance = Math.abs(deltaX);
+        const verticalDistance = Math.abs(deltaY);
+        const horizontalVelocity = horizontalDistance / Math.max(durationMs, 1);
+        if (durationMs > 900 || horizontalDistance < 48) return 0;
+        if (horizontalDistance < verticalDistance * 1.3) return 0;
+        if (horizontalDistance < 72 && horizontalVelocity < 0.25) return 0;
+        return deltaX < 0 ? 1 : -1;
+    }
+
+    function getContinuousScanTransition(currentStep, totalSteps, direction) {
+        if (!totalSteps || !direction) return { action: 'stay', step: currentStep };
+        if (direction < 0) {
+            return currentStep > 0
+                ? { action: 'move', step: currentStep - 1 }
+                : { action: 'stay', step: currentStep };
+        }
+        return currentStep < totalSteps - 1
+            ? { action: 'move', step: currentStep + 1 }
+            : { action: 'complete', step: currentStep };
+    }
+
     function getMultivendorScanDetails(item) {
         if (item?.locationMode !== 'temporary') return null;
         const totalInbound = Number(item.totalInbound);
@@ -1937,6 +1996,7 @@
 
         continuousScanStep = 0;
         continuousScanPreviousFocus = document.activeElement;
+        setPageContentInert(true);
         document.body.classList.add('scan-mode-open');
         document.getElementById('continuous-scan-dialog').hidden = false;
         renderContinuousScanStep();
@@ -1945,46 +2005,86 @@
 
     function closeContinuousScanMode() {
         document.getElementById('continuous-scan-dialog').hidden = true;
+        setPageContentInert(false);
         document.body.classList.remove('scan-mode-open');
         continuousScanSteps = [];
-        continuousScanPointerStartX = null;
+        continuousScanPointer = null;
         if (continuousScanPreviousFocus instanceof HTMLElement) continuousScanPreviousFocus.focus();
         continuousScanPreviousFocus = null;
     }
 
-    function showNextScanStep() {
-        if (continuousScanStep < continuousScanSteps.length - 1) {
-            continuousScanStep += 1;
-            renderContinuousScanStep();
+    function moveContinuousScanStep(direction) {
+        const transition = getContinuousScanTransition(continuousScanStep, continuousScanSteps.length, direction);
+        if (transition.action === 'complete') {
+            closeContinuousScanMode();
             return;
         }
-        closeContinuousScanMode();
-    }
-
-    function showPreviousScanStep() {
-        if (continuousScanStep === 0) return;
-        continuousScanStep -= 1;
+        if (transition.action !== 'move') return;
+        continuousScanStep = transition.step;
         renderContinuousScanStep();
     }
 
     function handleContinuousScanKeydown(event) {
         if (document.getElementById('continuous-scan-dialog').hidden) return;
-        if (event.key === 'Escape') closeContinuousScanMode();
-        if (event.key === 'ArrowRight') showNextScanStep();
-        if (event.key === 'ArrowLeft') showPreviousScanStep();
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeContinuousScanMode();
+            return;
+        }
+        if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            moveContinuousScanStep(1);
+            return;
+        }
+        if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            moveContinuousScanStep(-1);
+            return;
+        }
+        trapDialogFocus(event, document.getElementById('continuous-scan-dialog'));
     }
 
     function handleContinuousScanPointerDown(event) {
-        continuousScanPointerStartX = event.clientX;
+        if (!event.isPrimary || event.button !== 0) return;
+        if (event.target.closest('button, a, input, select, textarea, [contenteditable="true"]')) return;
+        const selection = window.getSelection?.();
+        if (selection && !selection.isCollapsed) return;
+        continuousScanPointer = {
+            id: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            startedAt: performance.now(),
+            cancelled: false
+        };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
+
+    function handleContinuousScanPointerMove(event) {
+        if (!continuousScanPointer || event.pointerId !== continuousScanPointer.id) return;
+        const deltaX = event.clientX - continuousScanPointer.startX;
+        const deltaY = event.clientY - continuousScanPointer.startY;
+        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) {
+            continuousScanPointer.cancelled = true;
+        }
     }
 
     function handleContinuousScanPointerUp(event) {
-        if (continuousScanPointerStartX === null) return;
-        const deltaX = event.clientX - continuousScanPointerStartX;
-        continuousScanPointerStartX = null;
-        if (Math.abs(deltaX) < 50) return;
-        if (deltaX < 0) showNextScanStep();
-        else showPreviousScanStep();
+        if (!continuousScanPointer || event.pointerId !== continuousScanPointer.id) return;
+        const pointer = continuousScanPointer;
+        continuousScanPointer = null;
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+        if (pointer.cancelled) return;
+        const direction = classifySwipeGesture({
+            deltaX: event.clientX - pointer.startX,
+            deltaY: event.clientY - pointer.startY,
+            durationMs: performance.now() - pointer.startedAt
+        });
+        moveContinuousScanStep(direction);
+    }
+
+    function cancelContinuousScanPointer(event) {
+        if (!continuousScanPointer || (event.pointerId !== undefined && event.pointerId !== continuousScanPointer.id)) return;
+        continuousScanPointer = null;
     }
 
     function removeDirectHistoryItem(key) {
@@ -2275,13 +2375,13 @@
         document.getElementById('saveWorkUnitBtn').addEventListener('click', saveSelectedWorkUnit);
         document.getElementById('startScanModeBtn').addEventListener('click', openContinuousScanMode);
         document.getElementById('closeScanModeBtn').addEventListener('click', closeContinuousScanMode);
-        document.getElementById('previousScanStepBtn').addEventListener('click', showPreviousScanStep);
-        document.getElementById('nextScanStepBtn').addEventListener('click', showNextScanStep);
+        document.getElementById('previousScanStepBtn').addEventListener('click', () => moveContinuousScanStep(-1));
+        document.getElementById('nextScanStepBtn').addEventListener('click', () => moveContinuousScanStep(1));
         document.getElementById('continuous-scan-stage').addEventListener('pointerdown', handleContinuousScanPointerDown);
+        document.getElementById('continuous-scan-stage').addEventListener('pointermove', handleContinuousScanPointerMove);
         document.getElementById('continuous-scan-stage').addEventListener('pointerup', handleContinuousScanPointerUp);
-        document.getElementById('continuous-scan-stage').addEventListener('pointercancel', () => {
-            continuousScanPointerStartX = null;
-        });
+        document.getElementById('continuous-scan-stage').addEventListener('pointercancel', cancelContinuousScanPointer);
+        document.getElementById('continuous-scan-stage').addEventListener('lostpointercapture', cancelContinuousScanPointer);
         document.addEventListener('keydown', handleContinuousScanKeydown);
         document.querySelectorAll('[data-qr-action]').forEach((button) => {
             button.addEventListener('click', handleQRAction);

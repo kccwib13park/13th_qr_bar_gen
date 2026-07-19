@@ -40,7 +40,7 @@ test('대량 지번과 검색 결과의 존 우선순위는 H1, BD, BC, AD, AC, 
 
 test('연속 스캔은 현재 검색 결과 전체를 제품 코드 QR 순서로 사용한다', () => {
   const scanSource = indexHtml.match(/function buildContinuousScanSteps[\s\S]*?function removeDirectHistoryItem/)?.[0] || '';
-  assert.match(scanSource, /getFilteredInventoryItems\(rawQuery\)/);
+  assert.match(scanSource, /getFilteredInventoryItems\(normalizeInventorySearch\(rawQuery\)\)/);
   assert.match(scanSource, /scanStep\.item\.productCode/);
   assert.doesNotMatch(scanSource, /locationCode|적치 QR/);
   assert.match(indexHtml, /id="startScanModeBtn"[^>]*disabled>현재 목록 연속 스캔/);

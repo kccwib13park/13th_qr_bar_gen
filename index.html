@@ -1215,14 +1215,19 @@
 
         inventoryItems = [...rackInventoryItems, ...multivendorInventoryItems];
         inventoryItemByKey = new Map(inventoryItems.map((item) => [item.itemKey, item]));
-        exactInventoryItemsByKey = new Map();
-        inventoryItems.forEach((item) => {
+        exactInventoryItemsByKey = buildExactInventoryIndex(inventoryItems);
+    }
+
+    function buildExactInventoryIndex(items) {
+        const index = new Map();
+        items.forEach((item) => {
             item.exactSearchKeys.forEach((key) => {
-                const matches = exactInventoryItemsByKey.get(key) || [];
+                const matches = index.get(key) || [];
                 matches.push(item);
-                exactInventoryItemsByKey.set(key, matches);
+                index.set(key, matches);
             });
         });
+        return index;
     }
 
     function getInventoryItems() {

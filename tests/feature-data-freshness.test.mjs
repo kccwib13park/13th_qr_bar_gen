@@ -13,22 +13,35 @@ test('재고 데이터 기준일을 화면 상태로 표시한다', () => {
   assert.match(indexHtml, /기준일 \$\{lastUpdated\}/);
 });
 
-test('기준일 경과 일수를 날짜 경계 기준으로 계산한다', () => {
+test('기준일 경과 일수를 KST 날짜 경계 기준으로 계산한다', () => {
   const source = indexHtml.match(/function getInventoryDataAgeDays\(lastUpdated, now = new Date\(\)\) \{[\s\S]*?\n    \}/)?.[0];
   assert.ok(source);
   const getAgeDays = new Function(`${source}; return getInventoryDataAgeDays;`)();
-  assert.equal(getAgeDays('2026-07-18', new Date('2026-07-18T23:59:00')), 0);
-  assert.equal(getAgeDays('2026-07-17', new Date('2026-07-18T01:00:00')), 1);
-  assert.equal(getAgeDays('2026-07-15', new Date('2026-07-18T01:00:00')), 3);
-  assert.equal(getAgeDays('invalid', new Date('2026-07-18T01:00:00')), null);
+  assert.equal(getAgeDays('2026-07-18', new Date('2026-07-18T14:59:59Z')), 0);
+  assert.equal(getAgeDays('2026-07-18', new Date('2026-07-18T15:00:00Z')), 1);
+  assert.equal(getAgeDays('2026-07-15', new Date('2026-07-18T15:00:00Z')), 4);
+  assert.equal(getAgeDays('2026-02-30', new Date('2026-07-18T15:00:00Z')), null);
+  assert.equal(getAgeDays('invalid', new Date('2026-07-18T15:00:00Z')), null);
+});
+
+test('업데이트 다음 날 오전 4시 KST부터 최신 상태를 종료한다', () => {
+  const source = indexHtml.match(/function getInventoryDataFreshUntil\(lastUpdated\) \{[\s\S]*?\n    \}\n\n    function isInventoryDataFresh\(lastUpdated, now = new Date\(\)\) \{[\s\S]*?\n    \}/)?.[0];
+  assert.ok(source);
+  const isFresh = new Function(`${source}; return isInventoryDataFresh;`)();
+  assert.equal(isFresh('2026-07-19', new Date('2026-07-19T18:59:59Z')), true);
+  assert.equal(isFresh('2026-07-19', new Date('2026-07-19T19:00:00Z')), false);
+  assert.equal(isFresh('2026-07-19', new Date('2026-07-19T19:00:01Z')), false);
+  assert.equal(isFresh('2026-02-30', new Date('2026-02-28T19:00:00Z')), false);
+  assert.equal(isFresh('invalid', new Date('2026-07-19T18:59:59Z')), false);
 });
 
 test('최신·업데이트 필요·오프라인·데이터 없음 상태를 구분한다', () => {
   assert.match(indexHtml, /badge\.textContent = '최신 데이터'/);
-  assert.match(indexHtml, /badge\.textContent = '업데이트 필요'/);
+  assert.match(indexHtml, /badge\.textContent = '데이터 업데이트 필요'/);
   assert.match(indexHtml, /badge\.textContent = '오프라인 데이터'/);
   assert.match(indexHtml, /badge\.textContent = '데이터 없음'/);
-  assert.match(indexHtml, /ageDays > DATA_STALE_AFTER_DAYS/);
+  assert.match(indexHtml, /if \(!isInventoryDataFresh\(lastUpdated, now\)\)/);
+  assert.match(indexHtml, /inventoryDataStatusRefreshTimer = setTimeout\(/);
 });
 
 test('정상 데이터를 캐시하고 온라인 실패 시 마지막 정상본을 사용한다', () => {

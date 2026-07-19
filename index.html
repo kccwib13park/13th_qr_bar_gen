@@ -770,7 +770,6 @@
     let rangeConfig = DEFAULT_RANGE_CONFIG;
     const DISPLAY_CONFIG_URL = './data/location-display-config.json';
     const DISPLAY_CONFIG_CACHE_KEY = 'qr_generator_display_config_cache_v1';
-    const DATA_STALE_AFTER_DAYS = 1;
     const DEFAULT_DISPLAY_CONFIG = Object.freeze({
         lastUpdated: null,
         numberOptionLabels: {},
@@ -779,6 +778,7 @@
     });
     let displayConfig = DEFAULT_DISPLAY_CONFIG;
     let inventoryDataSource = 'loading';
+    let inventoryDataStatusRefreshTimer = null;
 
     const ENCODING_RULES = {
         prefix: '1F',
@@ -884,19 +884,64 @@
     }
 
     function getInventoryDataAgeDays(lastUpdated, now = new Date()) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(lastUpdated))) return null;
-        const updatedDate = new Date(`${lastUpdated}T00:00:00`);
-        if (Number.isNaN(updatedDate.getTime())) return null;
-        const today = new Date(now);
-        today.setHours(0, 0, 0, 0);
-        return Math.max(0, Math.floor((today.getTime() - updatedDate.getTime()) / 86400000));
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(lastUpdated));
+        if (!match) return null;
+        const [, yearText, monthText, dayText] = match;
+        const year = Number(yearText);
+        const month = Number(monthText);
+        const day = Number(dayText);
+        const updatedDay = new Date(Date.UTC(year, month - 1, day));
+        if (
+            updatedDay.getUTCFullYear() !== year
+            || updatedDay.getUTCMonth() !== month - 1
+            || updatedDay.getUTCDate() !== day
+        ) return null;
+
+        const nowKst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+        const todayKst = Date.UTC(nowKst.getUTCFullYear(), nowKst.getUTCMonth(), nowKst.getUTCDate());
+        return Math.max(0, Math.floor((todayKst - updatedDay.getTime()) / 86400000));
+    }
+
+    function getInventoryDataFreshUntil(lastUpdated) {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(lastUpdated));
+        if (!match) return null;
+        const [, yearText, monthText, dayText] = match;
+        const year = Number(yearText);
+        const month = Number(monthText);
+        const day = Number(dayText);
+        const updatedDay = new Date(Date.UTC(year, month - 1, day));
+        if (
+            updatedDay.getUTCFullYear() !== year
+            || updatedDay.getUTCMonth() !== month - 1
+            || updatedDay.getUTCDate() !== day
+        ) return null;
+
+        const kstOffsetHours = 9;
+        const freshUntilHourKst = 4;
+        return Date.UTC(
+            year,
+            month - 1,
+            day + 1,
+            freshUntilHourKst - kstOffsetHours
+        );
+    }
+
+    function isInventoryDataFresh(lastUpdated, now = new Date()) {
+        const freshUntil = getInventoryDataFreshUntil(lastUpdated);
+        return freshUntil !== null && now.getTime() < freshUntil;
     }
 
     function renderInventoryDataStatus() {
         const badge = document.getElementById('inventory-data-status');
         const detail = document.getElementById('inventory-data-detail');
         const lastUpdated = displayConfig.lastUpdated;
-        const ageDays = getInventoryDataAgeDays(lastUpdated);
+        const now = new Date();
+        const ageDays = getInventoryDataAgeDays(lastUpdated, now);
+
+        if (inventoryDataStatusRefreshTimer !== null) {
+            clearTimeout(inventoryDataStatusRefreshTimer);
+            inventoryDataStatusRefreshTimer = null;
+        }
 
         if (inventoryDataSource === 'cached') {
             badge.dataset.state = 'cached';
@@ -910,9 +955,9 @@
             detail.textContent = '사용 가능한 재고 데이터가 없습니다. 네트워크 연결 후 새로고침해 주세요.';
             return;
         }
-        if (ageDays === null || ageDays > DATA_STALE_AFTER_DAYS) {
+        if (!isInventoryDataFresh(lastUpdated, now)) {
             badge.dataset.state = 'stale';
-            badge.textContent = '업데이트 필요';
+            badge.textContent = '데이터 업데이트 필요';
             detail.textContent = `기준일 ${lastUpdated || '알 수 없음'}${ageDays === null ? ' · 기준일 확인 필요' : ` · ${ageDays}일 경과`}`;
             return;
         }
@@ -920,6 +965,12 @@
         badge.dataset.state = 'current';
         badge.textContent = '최신 데이터';
         detail.textContent = `기준일 ${lastUpdated} · 온라인 데이터`;
+
+        const refreshDelay = getInventoryDataFreshUntil(lastUpdated) - now.getTime();
+        inventoryDataStatusRefreshTimer = setTimeout(
+            renderInventoryDataStatus,
+            Math.min(refreshDelay + 100, 2147483647)
+        );
     }
 
     function showConfigWarnings(messages) {

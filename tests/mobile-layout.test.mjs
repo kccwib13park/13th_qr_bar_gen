@@ -24,6 +24,6 @@ test('320px 화면과 모바일 키보드에 대응하는 레이아웃 규칙을
 test('주요 모바일 작업 버튼은 최소 44px 터치 영역을 확보한다', () => {
   assert.match(indexHtml, /\.qr-action-btn \{ min-height: 44px/);
   assert.match(indexHtml, /\.save-btn \{ display: block; min-height: 48px/);
-  assert.match(indexHtml, /\.inventory-item-btn \{ width: 100%; min-height: 48px/);
+  assert.match(indexHtml, /\.inventory-item-btn \{[^}]*width: 100%;[^}]*min-height: 48px/);
   assert.match(indexHtml, /\.emoji-btn \{ min-width: 44px; min-height: 44px/);
 });

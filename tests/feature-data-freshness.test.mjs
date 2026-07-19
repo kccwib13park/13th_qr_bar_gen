@@ -25,7 +25,7 @@ test('기준일 경과 일수를 KST 날짜 경계 기준으로 계산한다', (
 });
 
 test('업데이트 다음 날 오전 4시 KST부터 최신 상태를 종료한다', () => {
-  const source = indexHtml.match(/function getInventoryDataFreshUntil\(lastUpdated\) \{[\s\S]*?\n    \}\n\n    function isInventoryDataFresh\(lastUpdated, now = new Date\(\)\) \{[\s\S]*?\n    \}/)?.[0];
+  const source = indexHtml.match(/function getInventoryDataFreshUntil\(lastUpdated\) \{[\s\S]*?\r?\n    \}\r?\n\r?\n    function isInventoryDataFresh\(lastUpdated, now = new Date\(\)\) \{[\s\S]*?\r?\n    \}/)?.[0];
   assert.ok(source);
   const isFresh = new Function(`${source}; return isInventoryDataFresh;`)();
   assert.equal(isFresh('2026-07-19', new Date('2026-07-19T18:59:59Z')), true);

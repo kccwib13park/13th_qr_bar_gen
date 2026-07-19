@@ -100,7 +100,12 @@
         #bulk-inventory-list { max-height: 520px; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; list-style: none; display: grid; gap: 7px; scrollbar-color: #475569 #111827; }
         .inventory-item-btn { width: 100%; display: grid; gap: 4px; padding: 10px 12px; border: 1px solid #334155; border-radius: 9px; background: #111827; color: #f3f4f6; text-align: left; cursor: pointer; }
         .inventory-item-btn:hover, .inventory-item-btn:focus-visible, .inventory-item-btn.is-selected { border-color: #60a5fa; background: #172554; outline: none; }
+        .inventory-item-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
         .inventory-item-name { font-size: 14px; font-weight: 700; line-height: 1.35; }
+        .inventory-item-highlights { display: inline-flex; flex-wrap: wrap; gap: 5px; }
+        .inventory-item-highlight { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 7px; border: 1px solid #38bdf8; border-radius: 999px; background: #082f49; color: #e0f2fe; font-size: 11px; font-weight: 900; line-height: 1.2; }
+        .inventory-item-highlight.replenishment[data-state="replenish"] { border-color: #22c55e; background: #052e16; color: #bbf7d0; }
+        .inventory-item-highlight.replenishment[data-state="check"] { border-color: #f59e0b; background: #3b2608; color: #fde68a; }
         .inventory-item-meta { color: #94a3b8; font-size: 12px; word-break: break-all; }
         .inventory-zone-label { color: #93c5fd; font-weight: 700; }
         .inventory-empty { padding: 22px 12px; border: 1px dashed #475569; border-radius: 9px; color: #94a3b8; text-align: center; }
@@ -742,6 +747,7 @@
     const DEFAULT_DISPLAY_CONFIG = Object.freeze({
         lastUpdated: null,
         numberOptionLabels: {},
+        multivendorProducts: [],
         rackProductCatalog: {}
     });
     let displayConfig = DEFAULT_DISPLAY_CONFIG;
@@ -759,11 +765,11 @@
     const HISTORY_LIMIT = 20;
     const INVENTORY_ZONE_PRIORITY = ['H1', 'BD', 'BC', 'AD', 'AC', 'OTHER'];
     const WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
-    let selectedInventoryLocation = '';
+    let selectedInventoryKey = '';
     let selectedInventoryProductCode = '';
     let selectedInventoryItem = null;
     let inventoryItems = [];
-    let inventoryItemByLocation = new Map();
+    let inventoryItemByKey = new Map();
     let inventorySearchTimer = null;
     let continuousScanStep = 0;
     let continuousScanSteps = [];
@@ -801,6 +807,7 @@
         return {
             lastUpdated: typeof json?.lastUpdated === 'string' ? json.lastUpdated : null,
             numberOptionLabels: json?.numberOptionLabels || {},
+            multivendorProducts: Array.isArray(json?.multivendorProducts) ? json.multivendorProducts : [],
             rackProductCatalog: json?.rackProductCatalog || {}
         };
     }
@@ -957,6 +964,7 @@
 
     function getInventoryZoneGroup(zoneKey) {
         const normalizedZoneKey = String(zoneKey).toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (normalizedZoneKey === 'MULTIVENDOR') return { key: 'MULTI_VENDOR', label: '멀티밴더', hasBookmark: true };
         if (normalizedZoneKey === 'H1') return { key: 'H1', label: 'H1', hasBookmark: false };
         for (const zonePrefix of ['BD', 'BC', 'AD', 'AC']) {
             if (normalizedZoneKey.startsWith(zonePrefix)) {
@@ -976,7 +984,7 @@
 
     function rebuildInventoryIndex() {
         const orderedZoneKeys = Object.keys(displayConfig.rackProductCatalog).sort(compareInventoryZoneKeys);
-        inventoryItems = orderedZoneKeys.flatMap((zoneKey) => {
+        const rackInventoryItems = orderedZoneKeys.flatMap((zoneKey) => {
             const catalog = displayConfig.rackProductCatalog[zoneKey];
             if (!catalog) return [];
 
@@ -995,6 +1003,7 @@
                         .filter(Boolean);
                     return {
                         ...product,
+                        itemKey: `bulk:${product.location}`,
                         zoneKey,
                         rack: rackNumber,
                         zoneType,
@@ -1016,7 +1025,35 @@
                 })
                 .filter(Boolean);
         });
-        inventoryItemByLocation = new Map(inventoryItems.map((item) => [item.location, item]));
+
+        const multivendorInventoryItems = displayConfig.multivendorProducts
+            .filter((product) => product?.productCode && product?.productName)
+            .map((product) => {
+                const exactSearchKeys = [product.productName, product.productCode]
+                    .map(normalizeInventorySearch)
+                    .filter(Boolean);
+                return {
+                    ...product,
+                    itemKey: `multivendor:${product.productCode}`,
+                    location: '임시지번',
+                    locationMode: 'temporary',
+                    zoneKey: 'MULTI-VENDOR',
+                    zoneType: '멀티밴더',
+                    normalizedSearchText: normalizeInventorySearch([
+                        product.productName,
+                        product.productCode,
+                        '멀티',
+                        '멀티밴더',
+                        '임시지번',
+                        product.replenishment,
+                        product.totalInbound
+                    ].join(' ')),
+                    exactSearchKeys: [...new Set(exactSearchKeys)]
+                };
+            });
+
+        inventoryItems = [...rackInventoryItems, ...multivendorInventoryItems];
+        inventoryItemByKey = new Map(inventoryItems.map((item) => [item.itemKey, item]));
     }
 
     function getInventoryItems() {
@@ -1039,14 +1076,23 @@
     }
 
     function applyInventoryItem(item) {
-        const location = parseInventoryLocation(item.location);
+        const itemKey = item.itemKey || `bulk:${item.location}`;
+        const location = item.locationMode === 'temporary'
+            ? { ...groupDefaults.TEMP_LOT, zoneCode: 'TEMP_LOT', zoneNumber: groupDefaults.TEMP_LOT.number }
+            : parseInventoryLocation(item.location);
         if (!location) return;
-        selectedInventoryLocation = item.location;
+        selectedInventoryKey = itemKey;
         selectedInventoryProductCode = item.productCode;
-        selectedInventoryItem = { ...item, ...location };
+        selectedInventoryItem = { ...item, itemKey, ...location };
         document.getElementById('productInput').value = item.productCode;
         renderProductPreview();
-        applyHistoryToInputs(location);
+        if (item.locationMode === 'temporary') {
+            document.getElementById('zoneGroup').value = 'TEMP_LOT';
+            updateZoneCodeOptions();
+            applyDefaultsByGroup(true);
+        } else {
+            applyHistoryToInputs(location);
+        }
         renderLocationPreview();
 
         const placeholder = document.getElementById('inventory-qr-placeholder');
@@ -1060,7 +1106,7 @@
         document.getElementById('saveWorkUnitBtn').disabled = false;
 
         document.querySelectorAll('.inventory-item-btn').forEach((button) => {
-            const isSelected = button.dataset.location === item.location;
+            const isSelected = button.dataset.inventoryKey === itemKey;
             button.classList.toggle('is-selected', isSelected);
             button.setAttribute('aria-pressed', String(isSelected));
         });
@@ -1068,7 +1114,7 @@
 
     function clearInventorySelection({ clearLinkedProduct = false } = {}) {
         const linkedProductCode = selectedInventoryProductCode;
-        selectedInventoryLocation = '';
+        selectedInventoryKey = '';
         selectedInventoryProductCode = '';
         selectedInventoryItem = null;
 
@@ -1106,14 +1152,14 @@
         const filteredItems = getFilteredInventoryItems(rawQuery);
         document.getElementById('startScanModeBtn').disabled = filteredItems.length === 0;
 
-        if (selectedInventoryLocation && !filteredItems.some((item) => item.location === selectedInventoryLocation)) {
+        if (selectedInventoryKey && !filteredItems.some((item) => item.itemKey === selectedInventoryKey)) {
             clearInventorySelection({ clearLinkedProduct: true });
         }
 
         count.textContent = query ? `${filteredItems.length} / ${allItems.length}개` : `총 ${allItems.length}개`;
         status.textContent = query
             ? filteredItems.length ? `통합 검색 결과 ${filteredItems.length}개` : '일치하는 재고 항목이 없습니다.'
-            : 'H1 → BD → BC → AD → AC → 나머지 존 순서로 표시됩니다.';
+            : 'H1 → BD → BC → AD → AC → 나머지 존 → 멀티밴더 순서로 표시됩니다.';
         inventoryList.innerHTML = '';
 
         if (!filteredItems.length) {
@@ -1130,15 +1176,35 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'inventory-item-btn';
-            button.dataset.location = item.location;
+            button.dataset.inventoryKey = item.itemKey;
             button.setAttribute('aria-label', `${item.productName} 제품 코드 QR 보기`);
-            const isSelected = selectedInventoryLocation === item.location;
+            const isSelected = selectedInventoryKey === item.itemKey;
             button.classList.toggle('is-selected', isSelected);
             button.setAttribute('aria-pressed', String(isSelected));
 
+            const nameRow = document.createElement('span');
+            nameRow.className = 'inventory-item-name-row';
             const name = document.createElement('span');
             name.className = 'inventory-item-name';
             name.textContent = item.productName;
+            nameRow.appendChild(name);
+
+            if (item.locationMode === 'temporary') {
+                const highlights = document.createElement('span');
+                highlights.className = 'inventory-item-highlights';
+
+                const totalInbound = document.createElement('strong');
+                totalInbound.className = 'inventory-item-highlight';
+                totalInbound.textContent = `총 입고량 ${Number(item.totalInbound).toLocaleString('ko-KR')}`;
+
+                const replenishment = document.createElement('strong');
+                replenishment.className = 'inventory-item-highlight replenishment';
+                const needsReplenishment = item.replenishment === '보충';
+                replenishment.dataset.state = needsReplenishment ? 'replenish' : 'check';
+                replenishment.textContent = `보충 여부: ${needsReplenishment ? '보충' : '확인 필요'}`;
+                highlights.append(totalInbound, replenishment);
+                nameRow.appendChild(highlights);
+            }
 
             const meta = document.createElement('span');
             meta.className = 'inventory-item-meta';
@@ -1147,7 +1213,7 @@
             zone.textContent = item.zoneType;
             meta.append(zone, ` · ${item.location} · ${item.productCode}`);
 
-            button.append(name, meta);
+            button.append(nameRow, meta);
             listItem.appendChild(button);
             fragment.appendChild(listItem);
         });
@@ -1157,7 +1223,7 @@
     function handleInventoryListClick(event) {
         const button = event.target.closest('.inventory-item-btn');
         if (!button || !event.currentTarget.contains(button)) return;
-        const item = inventoryItemByLocation.get(button.dataset.location);
+        const item = inventoryItemByKey.get(button.dataset.inventoryKey);
         if (item) applyInventoryItem(item);
     }
 
@@ -1667,7 +1733,7 @@
             return;
         }
 
-        const key = `${selectedInventoryItem.productCode}|${selectedInventoryItem.location}`;
+        const key = `${selectedInventoryItem.productCode}|${selectedInventoryItem.itemKey}`;
         const history = loadWorkUnitHistory();
         const nextHistory = [
             {
@@ -1852,7 +1918,7 @@
     }
 
     function handleWorkUnitHistorySelect(item) {
-        const currentItem = inventoryItemByLocation.get(item.location) || item;
+        const currentItem = inventoryItemByKey.get(item.itemKey || `bulk:${item.location}`) || item;
         applyInventoryItem(currentItem);
     }
 

@@ -356,7 +356,7 @@
         <p id="continuous-scan-name" class="continuous-scan-name"></p>
         <div id="continuous-scan-qr-wrap" class="continuous-scan-qr"><div id="continuous-scan-qrcode" role="img" aria-label="연속 스캔 제품 QR"></div></div>
         <div id="continuous-scan-bookmark" class="continuous-scan-bookmark" role="note" hidden>
-            <p class="continuous-scan-bookmark-label">존 책갈피</p>
+            <p class="continuous-scan-bookmark-label">존 전환 안내</p>
             <p id="continuous-scan-bookmark-message" class="continuous-scan-bookmark-message"></p>
         </div>
         <p id="continuous-scan-value" class="continuous-scan-value"></p>
@@ -1828,8 +1828,8 @@
 
         if (isBookmark) {
             const bookmarkTitle = scanStep.zoneLabel === '나머지 존'
-                ? '나머지 존 책갈피'
-                : `${scanStep.zoneLabel} 존 책갈피`;
+                ? '나머지 존 전환 안내'
+                : `${scanStep.zoneLabel} 존 전환 안내`;
             title.textContent = bookmarkTitle;
             name.textContent = '';
             value.textContent = '';
